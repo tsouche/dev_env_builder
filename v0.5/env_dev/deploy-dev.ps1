@@ -333,11 +333,11 @@ Write-Host ""
 ################################################################################
 
 Write-Header "Building Docker Images"
-docker compose -f docker-compose-dev.yml build
+docker-compose -f docker-compose-dev.yml build
 Write-Success "Images built"
 
 Write-Header "Starting Services"
-docker compose -f docker-compose-dev.yml up -d
+docker-compose -f docker-compose-dev.yml up -d
 Write-Success "Services started"
 
 Write-Host "Waiting for containers to initialize..." -ForegroundColor Yellow
@@ -369,7 +369,7 @@ if (-not $sshTestPassed) {
 ################################################################################
 
 Write-Header "Deployment Complete - Development Environment"
-docker compose -f docker-compose-dev.yml ps
+docker-compose -f docker-compose-dev.yml ps
 
 Write-Host ""
 Write-Success "Development environment is ready!"
@@ -408,8 +408,8 @@ Write-Host "  - Config file:       $env:USERPROFILE\.ssh\config"
 Write-Host "  - Identity file:     $sshPrivateKey"
 Write-Host ""
 Write-Host "Useful Commands:" -ForegroundColor Blue
-Write-Host "  - Logs:      docker compose -f docker-compose-dev.yml logs -f"
-Write-Host "  - Stop:      docker compose -f docker-compose-dev.yml down"
-Write-Host "  - Restart:   docker compose -f docker-compose-dev.yml restart"
-Write-Host "  - Shell:     docker compose -f docker-compose-dev.yml exec dev-container bash"
+Write-Host "  - Logs:      docker-compose -f docker-compose-dev.yml logs -f"
+Write-Host "  - Stop:      docker-compose -f docker-compose-dev.yml down"
+Write-Host "  - Restart:   docker-compose -f docker-compose-dev.yml restart"
+Write-Host "  - Shell:     docker-compose -f docker-compose-dev.yml exec dev-container bash"
 Write-Host ""
