@@ -29,6 +29,7 @@ services:
       - MONGODB_DATABASE=${DB_NAME:-rust_app_db}
       - MONGODB_USER=${DB_USER:-app_user}
       - MONGODB_PASSWORD=${DB_PASSWORD:-app_password}
+      - MONGO_TEST_URI=mongodb://mongo-db:27017
       - RUST_LOG=${RUST_LOG:-debug}
     
     volumes:
@@ -68,7 +69,8 @@ services:
       - ${VOLUME_MONGODB_INIT}:/docker-entrypoint-initdb.d:ro
     
     networks:
-      - ${NETWORK_NAME:-dev-network}
+      dev-network:
+        ipv4_address: 172.20.0.10
 
   # Mongo Express - Debug Tool (enabled in dev)
   mongo-express:
@@ -90,10 +92,16 @@ services:
       - mongo-db
     
     networks:
-      - ${NETWORK_NAME:-dev-network}
+      dev-network:
+        ipv4_address: 172.20.0.12
 
 # All volumes are bind mounts to host directories
 networks:
   dev-network:
     name: ${NETWORK_NAME:-dev-network}
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
