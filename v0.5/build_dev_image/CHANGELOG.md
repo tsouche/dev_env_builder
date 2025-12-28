@@ -9,6 +9,7 @@
 ##### 1. Network Configuration Documentation
 
 Added detailed network configuration section to README:
+
 - Documented custom bridge network `dev-network` (172.20.0.0/24)
 - Documented hard-coded IP addresses:
   - MongoDB (mongo-db): 172.20.0.10
@@ -19,6 +20,7 @@ Added detailed network configuration section to README:
 ##### 2. MongoDB Connection Best Practices
 
 Enhanced MongoDB connection documentation:
+
 - Added examples of both hostname and IP-based connections
 - Clarified that hostname `mongo-db` is recommended for portability
 - Documented environment variables (MONGODB_HOST, MONGODB_URI)
@@ -27,6 +29,7 @@ Enhanced MongoDB connection documentation:
 ##### 3. Troubleshooting Enhancements
 
 Expanded MongoDB troubleshooting section:
+
 - Added network connectivity tests (ping mongo-db, ping IP)
 - Added mongosh connection examples with both hostname and static IP
 - Added docker network inspect commands
