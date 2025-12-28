@@ -1,5 +1,5 @@
 ################################################################################
-# Rust Development Environment - Version 0.5.5
+# Rust Development Environment - Version 0.5.6
 # Shared Dockerfile for all environments (dev, test, prod)
 ################################################################################
 FROM ubuntu:22.04

@@ -9,7 +9,7 @@ Build and push with a specific version:
 
 Example:
 ```powershell
-.\build_and_push.ps1 0.5.5
+.\build_and_push.ps1 0.5.6
 ```
 
 Or build with 'latest' tag only (default):

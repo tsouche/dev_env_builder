@@ -1,8 +1,9 @@
-# Development Environment Guide - v0.5.5
+# Development Environment Guide - v0.5.6
 
 Complete guide for deploying and using the local development container on Windows laptop.
 
 ## Table of Contents
+
 1. [Overview](#overview)
 2. [Prerequisites](#prerequisites)
 3. [Quick Start](#quick-start)
@@ -20,11 +21,12 @@ Complete guide for deploying and using the local development container on Window
 
 - **Platform**: Windows laptop with Docker Desktop
 - **Container**: Rust development environment with SSH access
-- **Base Image**: `tsouche/rust_dev_container:v0.5.5`
+- **Base Image**: `tsouche/rust_dev_container:v0.5.6`
 - **Services**: Dev container + MongoDB + Mongo Express
 - **Access**: VS Code Remote SSH to localhost
 
 **Container Features:**
+
 - Ubuntu 22.04 LTS
 - Rust stable toolchain (via rustup)
 - Build tools (gcc, cmake, pkg-config, libssl-dev)
@@ -40,18 +42,21 @@ Complete guide for deploying and using the local development container on Window
 ### 1. Windows Development Machine
 
 **Required Software:**
+
 - Docker Desktop for Windows
 - VS Code with Remote-SSH extension
 - OpenSSH client (included in Windows 10/11)
 - Git (for cloning repository within container)
 
 **Verify OpenSSH:**
+
 ```powershell
 ssh -V
 # Should show: OpenSSH_for_Windows_x.x
 ```
 
 If not installed:
+
 ```powershell
 # PowerShell as Administrator
 Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
@@ -77,6 +82,7 @@ C:\rustdev\
 ### 3. VS Code Extensions
 
 Install before connecting:
+
 - **Remote - SSH** (ms-vscode-remote.remote-ssh)
 - **Remote - SSH: Editing Configuration Files** (optional)
 
@@ -92,6 +98,7 @@ cd C:\path\to\set_backend\src\env_dev
 ```
 
 **What it does:**
+
 1. Checks for existing SSH keys (ed25519 or RSA)
 2. Generates new SSH key if none exists
 3. Creates required directories
@@ -101,6 +108,7 @@ cd C:\path\to\set_backend\src\env_dev
 7. Starts all services
 
 **First run prompts:**
+
 - Project directory handling (keep/delete/cancel)
 - SSH key generation (automatic if needed)
 
@@ -122,17 +130,19 @@ docker ps
 
 ## SSH Configuration
 
-### Automatic Configuration (v0.5.5+)
+### Automatic Configuration (v0.5.6+)
 
 The deployment script automatically:
+
 1. Detects existing SSH keys (`~/.ssh/id_ed25519` or `~/.ssh/id_rsa`)
 2. Generates new ed25519 key if none exists
 3. Copies public key to container's `authorized_keys`
 4. Adds `rust-dev` host to `~/.ssh/config`
 
 **Generated SSH Config:**
+
 ```ssh-config
-# Rust Development Environment v0.5.5 - Auto-generated
+# Rust Development Environment v0.5.6 - Auto-generated
 Host rust-dev
     HostName localhost
     Port 2222
@@ -169,17 +179,20 @@ ssh rust-dev
 ### Connect to Container
 
 **Method 1: Command Palette**
+
 1. Press `Ctrl+Shift+P`
 2. Type: `Remote-SSH: Connect to Host`
 3. Select: `rust-dev`
 4. Wait for connection and VS Code server installation
 
 **Method 2: VS Code UI**
+
 1. Click Remote indicator (bottom-left corner)
 2. Select "Connect to Host"
 3. Choose `rust-dev`
 
 **Method 3: Command Line**
+
 ```powershell
 code --remote ssh-remote+rust-dev /workspace
 ```
@@ -209,6 +222,7 @@ cargo build
 ```
 
 **⚠️ Important**: Clone inside the container, NOT on Windows!
+
 - ❌ Cloning on Windows causes WSL mount issues
 - ✅ Clone within container for proper permissions
 
@@ -216,17 +230,19 @@ cargo build
 
 ## Deployment Scripts
 
-### deploy-dev.ps1 (v0.5.5)
+### deploy-dev.ps1 (v0.5.6)
 
 **Purpose**: Complete environment deployment
 
 **Usage:**
+
 ```powershell
 .\deploy-dev.ps1
 ```
 
 **Features:**
-- Automatic SSH key generation (new in v0.5.5)
+
+- Automatic SSH key generation (new in v0.5.6)
 - Project directory handling (keep/delete/cancel)
 - Directory structure creation
 - MongoDB initialization
@@ -234,6 +250,7 @@ cargo build
 - Service startup
 
 **Interactive Prompts:**
+
 ```
 Existing project directory found: C:\rustdev\projects\set_backend
 Options:
@@ -243,11 +260,12 @@ Options:
 Enter choice (1/2/3) [2]:
 ```
 
-### cleanup.ps1 (v0.5.5)
+### cleanup.ps1 (v0.5.6)
 
 **Purpose**: Complete environment cleanup
 
 **Usage:**
+
 ```powershell
 .\cleanup.ps1
 ```
@@ -255,6 +273,7 @@ Enter choice (1/2/3) [2]:
 **Warning**: Requires confirmation (type `YES`)
 
 **Removes:**
+
 - All containers (dev-container, dev-mongodb, dev-mongo-express)
 - All Docker images
 - Project directory (`C:\rustdev\projects`)
@@ -263,6 +282,7 @@ Enter choice (1/2/3) [2]:
 - Target cache (`C:\rustdev\docker\target_cache`)
 
 **Preserves:**
+
 - SSH keys (`~/.ssh/`)
 - SSH config (`~/.ssh/config`)
 - VS Code settings
@@ -280,9 +300,33 @@ Enter choice (1/2/3) [2]:
 | **MongoDB** | 27017 | `mongodb://localhost:27017` | Database |
 | **Mongo Express** | 8080 | `http://localhost:8080` | Database admin UI |
 
+### Network Configuration
+
+The Docker Compose configuration creates a custom bridge network with static IP assignments:
+
+**Network Details:**
+
+- **Network Name**: `dev-network`
+- **Subnet**: `172.20.0.0/24`
+- **Gateway**: `172.20.0.1`
+
+**Container IP Addresses** (hard-coded in [docker-compose-dev.yml](docker-compose-dev.yml)):
+
+- **MongoDB (mongo-db)**: `172.20.0.10`
+- **Mongo Express**: `172.20.0.12`
+- **Dev Container**: Dynamic IP assignment from the subnet
+
+**⚠️ Important Notes:**
+
+- The MongoDB IP `172.20.0.10` is **hard-coded** to ensure consistent connectivity
+- The Mongo Express IP `172.20.0.12` is **hard-coded** for reliable admin access
+- If you need to change these IPs, modify the `networks` section in `docker-compose-dev.yml`
+- Applications should use the hostname `mongo-db` instead of the IP address for better portability
+- The static IPs ensure predictable network configuration across container restarts
+
 ### Environment Variables
 
-Defined in `.env` (v0.5.5):
+Defined in `.env` (v0.5.6):
 
 ```properties
 # Ports
@@ -319,10 +363,12 @@ GROUPNAME=rustdevteam
 **URL**: `http://localhost:8080`
 
 **Login**:
+
 - Username: `dev`
 - Password: `dev123`
 
 **Features**:
+
 - View/edit collections
 - Execute queries
 - Import/export data
@@ -330,15 +376,30 @@ GROUPNAME=rustdevteam
 
 ### MongoDB Connection
 
-**From within container:**
+**From within container (recommended):**
+
 ```
 mongodb://app_user:DevPassword123@mongo-db:27017/rust_app_db
 ```
 
+**Using static IP (from within container):**
+
+```
+mongodb://app_user:DevPassword123@172.20.0.10:27017/rust_app_db
+```
+
 **From host (Windows):**
+
 ```
 mongodb://admin:DevAdmin123@localhost:27017/rust_app_db
 ```
+
+**⚠️ Connection Best Practices:**
+
+- ✅ **Use hostname `mongo-db`** for service-to-service communication (recommended)
+- ⚠️ **Static IP `172.20.0.10`** works but reduces portability
+- The hostname is resolved by Docker's internal DNS to the static IP
+- Environment variable `MONGODB_HOST=mongo-db` is set in the dev container
 
 ---
 
@@ -364,6 +425,7 @@ code --remote ssh-remote+rust-dev /workspace
 ### 3. Clone & Build
 
 **Inside container:**
+
 ```bash
 cd /workspace
 git clone https://github.com/tsouche/set_backend.git
@@ -402,6 +464,7 @@ dev-l 8080  # Use different port
 ```
 
 **Alias Details:**
+
 - `dev-h`: `curl http://localhost:8080/health && echo ""`
 - `dev-v`: `curl http://localhost:8080/version && echo ""`
 - `dev-s`: `curl -X POST http://localhost:8080/shutdown && echo ""`
@@ -411,6 +474,7 @@ dev-l 8080  # Use different port
 ### 5. Development Loop
 
 **Inside container:**
+
 ```bash
 # Edit code in VS Code
 # Save changes (Ctrl+S)
@@ -428,12 +492,14 @@ cargo watch -x run
 ### 5. Database Operations
 
 **Check data with Mongo Express:**
+
 ```
 http://localhost:8080
 Login: dev / dev123
 ```
 
 **Or use mongosh in container:**
+
 ```bash
 # Inside dev-container
 mongosh mongodb://admin:DevAdmin123@mongo-db:27017/rust_app_db
@@ -448,12 +514,14 @@ db.setplayers.find()
 ### 6. Stop Development
 
 **From Windows:**
+
 ```powershell
 cd C:\path\to\set_backend\src\env_dev
 docker compose -f docker-compose-dev.yml down
 ```
 
 **Restart:**
+
 ```powershell
 docker compose -f docker-compose-dev.yml up -d
 ```
@@ -467,6 +535,7 @@ docker compose -f docker-compose-dev.yml up -d
 **Problem**: `ssh rust-dev` fails or times out
 
 **Solution**:
+
 ```powershell
 # Check container is running
 docker ps | findstr dev-container
@@ -483,6 +552,7 @@ icacls ~\.ssh\id_ed25519
 ```
 
 **Fix key permissions:**
+
 ```powershell
 # Remove inheritance
 icacls ~\.ssh\id_ed25519 /inheritance:r
@@ -498,13 +568,15 @@ icacls ~\.ssh\id_ed25519 /grant:r "$env:USERNAME:(F)"
 **Solutions**:
 
 1. **Container not running:**
+
 ```powershell
 docker ps | findstr dev-container
 # If not running:
 docker compose -f docker-compose-dev.yml up -d
 ```
 
-2. **SSH key issues:**
+1. **SSH key issues:**
+
 ```powershell
 # Regenerate SSH key
 rm ~\.ssh\id_ed25519*
@@ -514,7 +586,8 @@ ssh-keygen -t ed25519 -C "your_email@example.com"
 .\deploy-dev.ps1
 ```
 
-3. **VS Code Server issues:**
+1. **VS Code Server issues:**
+
 ```powershell
 # Remove VS Code server cache
 ssh rust-dev
@@ -531,23 +604,51 @@ exit
 **Solutions**:
 
 1. **Check MongoDB is running:**
+
 ```powershell
 docker ps | findstr mongodb
 ```
 
-2. **Check connection string:**
+1. **Check network connectivity:**
+
+```bash
+# From inside container
+ping mongo-db
+# Should resolve to 172.20.0.10
+
+# Test with static IP
+ping 172.20.0.10
+```
+
+1. **Check connection string:**
+
 ```bash
 # From inside container
 mongosh mongodb://admin:DevAdmin123@mongo-db:27017/rust_app_db
 
+# Or using static IP
+mongosh mongodb://admin:DevAdmin123@172.20.0.10:27017/rust_app_db
+
 # Should connect successfully
 ```
 
-3. **Check environment variables:**
+1. **Check environment variables:**
+
 ```bash
 # Inside container
 echo $MONGODB_URI
 # Should show: mongodb://mongo-db:27017/rust_app_db
+
+echo $MONGODB_HOST
+# Should show: mongo-db
+```
+
+1. **Verify network configuration:**
+
+```bash
+# Inside container
+docker network inspect dev-network
+# Check that mongo-db has IP 172.20.0.10
 ```
 
 ### Cargo Build Fails
@@ -557,24 +658,28 @@ echo $MONGODB_URI
 **Solutions**:
 
 1. **Clean build:**
+
 ```bash
 # Inside container
 cargo clean
 cargo build
 ```
 
-2. **Update dependencies:**
+1. **Update dependencies:**
+
 ```bash
 cargo update
 ```
 
-3. **Check disk space:**
+1. **Check disk space:**
+
 ```bash
 df -h /workspace
 # Ensure sufficient space
 ```
 
-4. **Clear caches:**
+1. **Clear caches:**
+
 ```powershell
 # From Windows (stop containers first)
 docker compose -f docker-compose-dev.yml down
@@ -594,6 +699,7 @@ docker compose -f docker-compose-dev.yml up -d
 **Solutions**:
 
 1. **Find process using port:**
+
 ```powershell
 netstat -ano | findstr :2222
 # Note the PID (last column)
@@ -602,12 +708,14 @@ netstat -ano | findstr :2222
 taskkill /PID <pid> /F
 ```
 
-2. **Change port in .env:**
+1. **Change port in .env:**
+
 ```properties
 SSH_PORT=2223  # Use different port
 ```
 
-3. **Stop conflicting containers:**
+1. **Stop conflicting containers:**
+
 ```powershell
 docker ps -a
 docker stop <container_id>
@@ -621,6 +729,7 @@ docker rm <container_id>
 **Solutions**:
 
 1. **Manual install:**
+
 - Open Extensions view (Ctrl+Shift+X)
 - Search and install:
   - rust-analyzer
@@ -628,14 +737,16 @@ docker rm <container_id>
   - Even Better TOML
   - crates
 
-2. **Reinstall VS Code Server:**
+1. **Reinstall VS Code Server:**
+
 ```bash
 # Inside container
 rm -rf ~/.vscode-server
 # Reconnect with VS Code (reinstalls server)
 ```
 
-3. **Check extension settings:**
+1. **Check extension settings:**
+
 - Settings → Remote [SSH: rust-dev] → Extensions
 - Enable auto-install
 
@@ -647,11 +758,11 @@ rm -rf ~/.vscode-server
 
 ```
 C:\path\to\set_backend\src\env_dev\
-├── .env                       # Environment configuration (v0.5.5)
+├── .env                       # Environment configuration (v0.5.6)
 ├── Dockerfile                 # Dev container definition
-├── docker-compose-dev.yml     # Services orchestration (v0.5.5)
-├── deploy-dev.ps1            # Deployment script (v0.5.5)
-├── cleanup.ps1               # Cleanup script (v0.5.5)
+├── docker-compose-dev.yml     # Services orchestration (v0.5.6)
+├── deploy-dev.ps1            # Deployment script (v0.5.6)
+├── cleanup.ps1               # Cleanup script (v0.5.6)
 ├── 01-init-db.js             # MongoDB initialization (auto-generated)
 ├── authorized_keys            # SSH public key (auto-generated)
 └── README.md                 # This guide
@@ -771,15 +882,15 @@ Mongo Express:     http://localhost:8080 (dev/dev123)
 
 ### Version Summary
 
-- **Environment**: v0.5.5
-- **Base Image**: tsouche/rust_dev_container:v0.5.5
-- **New in v0.5.5**: Automatic SSH key generation, enhanced development service aliases and functions, and port updates
+- **Environment**: v0.5.6
+- **Base Image**: tsouche/rust_dev_container:v0.5.6
+- **New in v0.5.6**: Documentation improvements for MongoDB network configuration with hard-coded IPs
 
 ---
 
 ## Notes
 
-- 🔑 **SSH keys auto-generated** if none exist (new in v0.5.5)
+- 🔑 **SSH keys auto-generated** if none exist (new in v0.5.6)
 - 📂 **Clone projects inside container** - NOT on Windows!
 - 💾 **Cargo/target caches persist** between container restarts
 - 🔄 **MongoDB data persists** across deployments
@@ -801,5 +912,3 @@ After deployment:
 5. ✅ Test with Mongo Express: `http://localhost:8080`
 
 Happy coding! 🦀
-
-

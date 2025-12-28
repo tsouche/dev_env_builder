@@ -1,3 +1,44 @@
+## Version 0.5.6 (December 28, 2025)
+
+### 📚 Documentation Enhancement - MongoDB Network Configuration
+
+**Improved Documentation**: Added comprehensive documentation for hard-coded IP addresses in MongoDB network configuration.
+
+#### Updates
+
+##### 1. Network Configuration Documentation
+
+Added detailed network configuration section to README:
+- Documented custom bridge network `dev-network` (172.20.0.0/24)
+- Documented hard-coded IP addresses:
+  - MongoDB (mongo-db): 172.20.0.10
+  - Mongo Express: 172.20.0.12
+- Added important notes about when to use hostnames vs. IPs
+- Explained Docker's internal DNS resolution
+
+##### 2. MongoDB Connection Best Practices
+
+Enhanced MongoDB connection documentation:
+- Added examples of both hostname and IP-based connections
+- Clarified that hostname `mongo-db` is recommended for portability
+- Documented environment variables (MONGODB_HOST, MONGODB_URI)
+- Added network troubleshooting steps
+
+##### 3. Troubleshooting Enhancements
+
+Expanded MongoDB troubleshooting section:
+- Added network connectivity tests (ping mongo-db, ping IP)
+- Added mongosh connection examples with both hostname and static IP
+- Added docker network inspect commands
+
+#### Technical Details
+
+- No changes to container functionality
+- Documentation-only release
+- Network configuration remains unchanged from v0.5.5
+
+---
+
 ## Version 0.5.5 (November 19, 2025)
 
 ### 🚀 Development Service Aliases & Port Updates
@@ -99,7 +140,8 @@ The cache directories are designed to work with the environment-specific volume 
 
 ## Version History Notes
 
-- **v0.5.5**: Current version with development aliases and port updates
+- **v0.5.6**: Documentation improvements for MongoDB network configuration
+- **v0.5.5**: Development aliases and port updates
 - **v0.5.4**: Performance optimization through comprehensive caching
 - **v0.5.1**: Focus on Rust performance optimization through comprehensive caching
 - **Future versions**: May include additional language support, security hardening, or specialized toolchains
@@ -107,4 +149,4 @@ The cache directories are designed to work with the environment-specific volume 
 ---
 
 **Maintained by:** Thierry Souche
-**Last Updated:** November 19, 2025
+**Last Updated:** December 28, 2025

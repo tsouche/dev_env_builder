@@ -1,5 +1,5 @@
 ################################################################################
-# Development Environment Deployment Script - v0.5.5 (PowerShell)
+# Development Environment Deployment Script - v0.5.6 (PowerShell)
 # Deploys to local development laptop
 ################################################################################
 
@@ -264,7 +264,7 @@ if ($existingConfig -notmatch "Host rust-dev") {
     # Prepare the new host configuration
     $newHostConfig = @"
 
-# Rust Development Environment v0.5.5 - Auto-generated
+# Rust Development Environment v0.5.6 - Auto-generated
 Host rust-dev
     HostName localhost
     Port $($env:SSH_PORT)
