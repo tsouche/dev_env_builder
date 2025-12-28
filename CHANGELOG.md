@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.5] - 2025-11-19
 
 ### Added
+
 - **CHANGELOG.md**: Added comprehensive changelog file for version tracking
 - **Enhanced Development Service Aliases**: added improved bash aliases and functions for quick API access from container terminal
   - `dev-c`: Now takes 'db' argument for database clearing
@@ -15,13 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Port Configuration**: Updated default application port to 5645 for development environment
 
 ### Changed
+
 - **Version Update**: Updated all documentation and configuration files to reflect version 0.5.5
 - **Base Image Reference**: Updated base image references from v0.5.4 to v0.5.5
 
 ### Fixed
+
 - **Documentation Consistency**: Ensured all version references are consistent across all files
 
 ### Technical Details
+
 - **Rust Cache Optimization**: Verified comprehensive Rust compilation cache setup with:
   - Incremental compilation (`CARGO_INCREMENTAL=1`)
   - Parallel build jobs (`CARGO_BUILD_JOBS=4`)
@@ -31,27 +35,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.4] - 2025-11-15
 
 ### Added
+
 - **Enhanced Rust Compiler Cache**: Comprehensive cache configuration for optimal development performance
 - **Cache Directory Structure**: Complete setup of cargo registry, git, and rustup caches
 - **Performance Optimizations**: Incremental compilation and parallel build jobs
 - **Volume Mount Compatibility**: Cache directories designed to work with persistent volume mounts
 
 ### Changed
+
 - **Build Environment**: Optimized Rust environment variables for better performance
 
 ## [0.5.1] - 2025-11-11
 
 ### Added
+
 - **Automatic SSH Key Generation**: Deployment script now auto-generates SSH keys if none exist
 - **SSH Configuration Automation**: Automatic addition of rust-dev host to SSH config
 - **Project Directory Handling**: Interactive prompts for existing project directory management
 
 ### Changed
+
 - **Documentation Updates**: Updated all references to reflect v0.5.1 features
 
 ## [0.5.0] - 2025-11-11
 
 ### Added
+
 - **Complete Development Environment**: Full containerized Rust development setup
 - **SSH Access**: Secure SSH server with key-based authentication
 - **MongoDB Integration**: MongoDB database with Mongo Express admin interface
@@ -61,6 +70,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Comprehensive Documentation**: Detailed setup and troubleshooting guides
 
 ### Technical Features
+
 - Ubuntu 22.04 LTS base
 - Rust stable toolchain via rustup
 - MongoDB 7.0 with initialization scripts
