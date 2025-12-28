@@ -34,6 +34,10 @@ RUN if [ -n "${GIT_USER_NAME}" ] && [ -n "${GIT_USER_EMAIL}" ]; then \
 
 # Add development service aliases and functions
 RUN echo '' >> /home/rustdev/.bashrc && \
+    echo '# Custom test aliases for set_backend project' >> /home/rustdev/.bashrc && \
+    echo "alias test_unit='cd /workspace/set_backend && cargo test -- --skip set_server_from_ext --test-threads=1'" >> /home/rustdev/.bashrc && \
+    echo "alias test_all='cd /workspace/set_backend && cargo test -- --test-threads=1'" >> /home/rustdev/.bashrc && \
+    echo "alias test_int='cd /workspace/set_backend && cargo test set_server_from_ext -- --test-threads=1'" >> /home/rustdev/.bashrc
     echo '# Development Service Aliases and Functions' >> /home/rustdev/.bashrc && \
     echo 'alias dev-h="curl http://localhost:5645/health && echo \"\""' >> /home/rustdev/.bashrc && \
     echo 'alias dev-v="curl http://localhost:5645/version && echo \"\""' >> /home/rustdev/.bashrc && \
