@@ -66,7 +66,7 @@ Add-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
 
 The deployment script will create these directories:
 
-```
+```bash
 C:\rustdev\
 ├── projects\              # Project workspace (bind mount)
 ├── docker\
@@ -87,6 +87,17 @@ Install before connecting:
 - **Remote - SSH: Editing Configuration Files** (optional)
 
 ---
+
+## Version 0.6.0 - What's New
+
+**New features in base image (v0.6.0):**
+
+- GitHub CLI (`gh`) installed and ready to use
+- Shell aliases: `ll`, `la`, cargo shortcuts (`cb`, `cr`, `ct`, etc.)
+- Git aliases: `git st`, `git co`, `git br`, `git lg`
+- Development service functions: `dev-h`, `dev-v`, `dev-s`, `dev-c`, `dev-l()`
+
+**Important**: Rebuild the base image with `build_and_push.ps1 0.6.0` before deploying.
 
 ## Quick Start
 

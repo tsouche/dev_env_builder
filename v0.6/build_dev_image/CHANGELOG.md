@@ -1,3 +1,74 @@
+## Version 0.6.0 (January 3, 2026)
+
+### ✨ Feature Enhancement - Shell Productivity & GitHub Integration
+
+**Major Updates**: Added GitHub CLI, comprehensive shell aliases, and moved development functions to base image.
+
+#### New Features
+
+##### 1. GitHub CLI Integration
+
+- **GitHub CLI (gh)** installed in base image
+- Enables repository management from terminal
+- PR and issue handling without leaving VS Code
+- Supports GitHub authentication and token management
+- Usage: `gh auth login`, `gh repo clone`, `gh pr create`, etc.
+
+##### 2. Shell Aliases & Productivity
+
+**Common Shell Aliases:**
+
+- File listing: `ll`, `la`, `l`
+- Navigation: `..` (up one dir), `...` (up two dirs)
+- Colored output: `grep`, `fgrep`, `egrep`
+
+**Cargo Shortcuts:**
+
+- `cb` → `cargo build`
+- `cr` → `cargo run`
+- `ct` → `cargo test`
+- `cc` → `cargo check`
+- `ccl` → `cargo clippy`
+- `cf` → `cargo fmt`
+- `cu` → `cargo update`
+
+**Git Aliases:**
+
+- `git st` → status
+- `git co` → checkout
+- `git br` → branch
+- `git ci` → commit
+- `git unstage` → reset HEAD
+- `git last` → show last commit
+- `git lg` → pretty formatted log with graph
+
+##### 3. Development Service Functions (Now in Base Image)
+
+Moved from environment-specific Dockerfile to base image for consistency:
+
+- `dev-h`: Health check endpoint (curl <http://localhost:5645/health>)
+- `dev-v`: Version endpoint (curl <http://localhost:5645/version>)
+- `dev-s`: Shutdown endpoint (POST to /shutdown)
+- `dev-c`: Clear database endpoint (POST to /clear?db)
+- `dev-l()`: Launch server function with auto-restart
+  - Enhanced to accept port and project directory as parameters
+  - Usage: `dev-l [port] [project_dir]`
+  - Default: `dev-l 5645 set_backend`
+
+#### Benefits
+
+- **Improved Productivity**: Common tasks now require fewer keystrokes
+- **Consistent Experience**: All aliases available in every deployment
+- **GitHub Integration**: Seamless git workflow with gh CLI
+- **Simplified Deployments**: Environment-specific Dockerfiles are now cleaner
+- **Better Maintainability**: Single source of truth for development tools
+
+#### Breaking Changes
+
+None. All changes are additive and backwards compatible.
+
+---
+
 ## Version 0.5.6 (December 28, 2025)
 
 ### 📚 Documentation Enhancement - MongoDB Network Configuration

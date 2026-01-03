@@ -1,5 +1,5 @@
 ################################################################################
-# Rust Development Environment - Version 0.5.6
+# Rust Development Environment - Version 0.6.0
 # Shared Dockerfile for all environments (dev, test, prod)
 ################################################################################
 FROM ubuntu:22.04
@@ -36,6 +36,17 @@ RUN curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \
     tee /etc/apt/sources.list.d/mongodb-org-7.0.list && \
     apt-get update && \
     apt-get install -y mongodb-mongosh && \
+    rm -rf /var/lib/apt/lists/*
+
+################################################################################
+# Install GitHub CLI
+################################################################################
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
+    gpg --dearmor -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | \
+    tee /etc/apt/sources.list.d/github-cli.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y gh && \
     rm -rf /var/lib/apt/lists/*
 
 ################################################################################
@@ -165,6 +176,84 @@ RUN echo '' >> /home/${USERNAME}/.bashrc && \
     echo '        echo ""' >> /home/${USERNAME}/.bashrc && \
     echo '    fi' >> /home/${USERNAME}/.bashrc && \
     echo 'fi' >> /home/${USERNAME}/.bashrc
+
+################################################################################
+# Common Shell Aliases and Git Shortcuts
+################################################################################
+USER ${USERNAME}
+
+# Add common shell aliases
+RUN echo '' >> /home/${USERNAME}/.bashrc && \
+    echo '# Common Shell Aliases' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias ll="ls -alF"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias la="ls -A"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias l="ls -CF"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias ..="cd .."' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias ...="cd ../.."' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias grep="grep --color=auto"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias fgrep="fgrep --color=auto"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias egrep="egrep --color=auto"' >> /home/${USERNAME}/.bashrc
+
+# Add Git aliases
+RUN git config --global alias.st status && \
+    git config --global alias.co checkout && \
+    git config --global alias.br branch && \
+    git config --global alias.ci commit && \
+    git config --global alias.unstage 'reset HEAD --' && \
+    git config --global alias.last 'log -1 HEAD' && \
+    git config --global alias.visual '!gitk' && \
+    git config --global alias.lg "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
+
+# Add Cargo shortcuts
+RUN echo '' >> /home/${USERNAME}/.bashrc && \
+    echo '# Cargo Shortcuts' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias cb="cargo build"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias cr="cargo run"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias ct="cargo test"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias cc="cargo check"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias ccl="cargo clippy"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias cf="cargo fmt"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias cu="cargo update"' >> /home/${USERNAME}/.bashrc
+
+################################################################################
+# Development Service Aliases and Functions
+################################################################################
+
+# Add development service aliases and functions for Rust backend projects
+RUN echo '' >> /home/${USERNAME}/.bashrc && \
+    echo '# Development Service Aliases and Functions' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias dev-h="curl http://localhost:5645/health && echo \"\""' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias dev-v="curl http://localhost:5645/version && echo \"\""' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias dev-s="curl -X POST http://localhost:5645/shutdown && echo \"\""' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias dev-c="curl -X POST http://localhost:5645/clear?db && echo \"\""' >> /home/${USERNAME}/.bashrc && \
+    echo '' >> /home/${USERNAME}/.bashrc && \
+    echo 'dev-l() {' >> /home/${USERNAME}/.bashrc && \
+    echo '    local port=${1:-5645}  # Default port 5645, or pass as argument' >> /home/${USERNAME}/.bashrc && \
+    echo '    local project_dir=${2:-set_backend}  # Default project, or pass as argument' >> /home/${USERNAME}/.bashrc && \
+    echo '    cd /workspace/$project_dir' >> /home/${USERNAME}/.bashrc && \
+    echo '    ' >> /home/${USERNAME}/.bashrc && \
+    echo '    if curl -s http://localhost:$port/health > /dev/null 2>&1; then' >> /home/${USERNAME}/.bashrc && \
+    echo '        echo "Shutting down server on port $port..."' >> /home/${USERNAME}/.bashrc && \
+    echo '        curl -X POST http://localhost:$port/shutdown 2>/dev/null' >> /home/${USERNAME}/.bashrc && \
+    echo '        sleep 2' >> /home/${USERNAME}/.bashrc && \
+    echo '    else' >> /home/${USERNAME}/.bashrc && \
+    echo '        echo "Server not running on port $port"' >> /home/${USERNAME}/.bashrc && \
+    echo '    fi' >> /home/${USERNAME}/.bashrc && \
+    echo '    ' >> /home/${USERNAME}/.bashrc && \
+    echo '    echo "Starting server..."' >> /home/${USERNAME}/.bashrc && \
+    echo '    nohup cargo run > /dev/null 2>&1 &' >> /home/${USERNAME}/.bashrc && \
+    echo '    echo "Server started (PID: $!)"' >> /home/${USERNAME}/.bashrc && \
+    echo '    ' >> /home/${USERNAME}/.bashrc && \
+    echo '    # Wait for server to be ready' >> /home/${USERNAME}/.bashrc && \
+    echo '    for i in {1..10}; do' >> /home/${USERNAME}/.bashrc && \
+    echo '        if curl -s http://localhost:$port/health > /dev/null 2>&1; then' >> /home/${USERNAME}/.bashrc && \
+    echo '            echo "Server is ready on port $port"' >> /home/${USERNAME}/.bashrc && \
+    echo '            return 0' >> /home/${USERNAME}/.bashrc && \
+    echo '        fi' >> /home/${USERNAME}/.bashrc && \
+    echo '        sleep 1' >> /home/${USERNAME}/.bashrc && \
+    echo '    done' >> /home/${USERNAME}/.bashrc && \
+    echo '    echo "Server failed to start within 10 seconds"' >> /home/${USERNAME}/.bashrc && \
+    echo '}' >> /home/${USERNAME}/.bashrc
 
 ################################################################################
 # Workspace Setup
