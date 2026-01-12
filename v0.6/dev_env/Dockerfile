@@ -42,7 +42,7 @@ RUN if [ -n "${GIT_USER_NAME}" ] && [ -n "${GIT_USER_EMAIL}" ]; then \
 
 # Add custom deployment alias to user's .bashrc
 RUN echo "alias deploy='cd /workspace/set_backend/src/01-staging_env && ./full_deploy.sh 100.100.10.1 thierry 5522 --release && cd /workspace/set_backend'" >> /home/rustdev/.bashrc && \
-    echo "alias test='cd /workspace/set_backend && cargo test --features staging -- --test-threads=1 2>&1'" >> /home/rustdev/.bashrc \
+    echo "alias test='cd /workspace/set_backend/01-staging_env && cargo test --features staging -- --test-threads=1 2>&1'" >> /home/rustdev/.bashrc \
     echo "alias testdev='cd /workspace/set_backend && cargo test --features dev --  --test-threads=1 2>&1'" >> /home/rustdev/.bashrc
 
 USER root
