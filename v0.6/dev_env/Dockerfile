@@ -40,6 +40,10 @@ RUN if [ -n "${GIT_USER_NAME}" ] && [ -n "${GIT_USER_EMAIL}" ]; then \
 # included in the base image (tsouche/rust_dev_container:latest)
 # No need to redefine them here.
 
+# Add custom deployment alias to user's .bashrc
+RUN echo "alias deploy='cd /workspace/set_backend/src/01-staging_env && ./full_deploy.sh 100.100.10.1 thierry 5522 --release && cd /workspace/set_backend'" >> /home/rustdev/.bashrc && \
+    echo "alias test='cd /workspace/set_backend && cargo test --features staging -- --test-threads=1 2>&1'" >> /home/rustdev/.bashrc
+
 USER root
 WORKDIR /workspace
 
