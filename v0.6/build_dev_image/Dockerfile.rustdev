@@ -1,5 +1,5 @@
 ################################################################################
-# Rust Development Environment - Version 0.6.0
+# Rust Development Environment - Version 0.6.1
 # Shared Dockerfile for all environments (dev, test, prod)
 ################################################################################
 FROM ubuntu:22.04
@@ -214,46 +214,6 @@ RUN echo '' >> /home/${USERNAME}/.bashrc && \
     echo 'alias ccl="cargo clippy"' >> /home/${USERNAME}/.bashrc && \
     echo 'alias cf="cargo fmt"' >> /home/${USERNAME}/.bashrc && \
     echo 'alias cu="cargo update"' >> /home/${USERNAME}/.bashrc
-
-################################################################################
-# Development Service Aliases and Functions
-################################################################################
-
-# Add development service aliases and functions for Rust backend projects
-RUN echo '' >> /home/${USERNAME}/.bashrc && \
-    echo '# Development Service Aliases and Functions' >> /home/${USERNAME}/.bashrc && \
-    echo 'alias dev-h="curl http://localhost:5645/health && echo \"\""' >> /home/${USERNAME}/.bashrc && \
-    echo 'alias dev-v="curl http://localhost:5645/version && echo \"\""' >> /home/${USERNAME}/.bashrc && \
-    echo 'alias dev-s="curl -X POST http://localhost:5645/shutdown && echo \"\""' >> /home/${USERNAME}/.bashrc && \
-    echo 'alias dev-c="curl -X POST http://localhost:5645/clear?db && echo \"\""' >> /home/${USERNAME}/.bashrc && \
-    echo '' >> /home/${USERNAME}/.bashrc && \
-    echo 'dev-l() {' >> /home/${USERNAME}/.bashrc && \
-    echo '    local port=${1:-5645}  # Default port 5645, or pass as argument' >> /home/${USERNAME}/.bashrc && \
-    echo '    local project_dir=${2:-set_backend}  # Default project, or pass as argument' >> /home/${USERNAME}/.bashrc && \
-    echo '    cd /workspace/$project_dir' >> /home/${USERNAME}/.bashrc && \
-    echo '    ' >> /home/${USERNAME}/.bashrc && \
-    echo '    if curl -s http://localhost:$port/health > /dev/null 2>&1; then' >> /home/${USERNAME}/.bashrc && \
-    echo '        echo "Shutting down server on port $port..."' >> /home/${USERNAME}/.bashrc && \
-    echo '        curl -X POST http://localhost:$port/shutdown 2>/dev/null' >> /home/${USERNAME}/.bashrc && \
-    echo '        sleep 2' >> /home/${USERNAME}/.bashrc && \
-    echo '    else' >> /home/${USERNAME}/.bashrc && \
-    echo '        echo "Server not running on port $port"' >> /home/${USERNAME}/.bashrc && \
-    echo '    fi' >> /home/${USERNAME}/.bashrc && \
-    echo '    ' >> /home/${USERNAME}/.bashrc && \
-    echo '    echo "Starting server..."' >> /home/${USERNAME}/.bashrc && \
-    echo '    nohup cargo run > /dev/null 2>&1 &' >> /home/${USERNAME}/.bashrc && \
-    echo '    echo "Server started (PID: $!)"' >> /home/${USERNAME}/.bashrc && \
-    echo '    ' >> /home/${USERNAME}/.bashrc && \
-    echo '    # Wait for server to be ready' >> /home/${USERNAME}/.bashrc && \
-    echo '    for i in {1..10}; do' >> /home/${USERNAME}/.bashrc && \
-    echo '        if curl -s http://localhost:$port/health > /dev/null 2>&1; then' >> /home/${USERNAME}/.bashrc && \
-    echo '            echo "Server is ready on port $port"' >> /home/${USERNAME}/.bashrc && \
-    echo '            return 0' >> /home/${USERNAME}/.bashrc && \
-    echo '        fi' >> /home/${USERNAME}/.bashrc && \
-    echo '        sleep 1' >> /home/${USERNAME}/.bashrc && \
-    echo '    done' >> /home/${USERNAME}/.bashrc && \
-    echo '    echo "Server failed to start within 10 seconds"' >> /home/${USERNAME}/.bashrc && \
-    echo '}' >> /home/${USERNAME}/.bashrc
 
 ################################################################################
 # Workspace Setup

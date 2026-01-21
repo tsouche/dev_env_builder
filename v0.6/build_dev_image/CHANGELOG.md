@@ -1,3 +1,18 @@
+## Version 0.6.1 (January 21, 2026)
+
+### 🧹 Cleanup - Removed Service-Specific Aliases
+
+**Changes**: Removed set-backend specific aliases to keep the base image more generic and focused on general Rust development.
+
+#### Removed Features
+
+- Removed `dev-h` alias (Health check endpoint)
+- Removed `dev-v` alias (Version endpoint)
+
+These service-specific aliases should be defined in project-specific configurations rather than the base development image.
+
+---
+
 ## Version 0.6.0 (January 3, 2026)
 
 ### ✨ Feature Enhancement - Shell Productivity & GitHub Integration
