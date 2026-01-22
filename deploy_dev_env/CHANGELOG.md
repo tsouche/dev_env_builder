@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.6] - 2026-01-22
+
+### Changed
+
+- **Switched from Alpine/musl to Ubuntu/glibc test container**
+  - Replaced `alpine-test` service with `ubuntu-test` service
+  - Base image: ubuntu:22.04 (was alpine:3.19)
+  - Build context: Uses new Dockerfile.ubuntu-test
+  - Purpose: Test hot-swap deployment workflow locally before NAS deployment
+  - Simulates staging/prod environment for binary compatibility testing
+  - Runtime deps: libssl3, curl, ca-certificates
+  - Same network configuration (172.20.0.14)
+
+- **New test scripts for Ubuntu container**
+  - Created `test-ubuntu.ps1` (PowerShell version)
+  - Created `test-ubuntu.sh` (Bash version for use inside dev container)
+  - Tests native glibc-compiled binaries
+  - Replaced `test-alpine.*` scripts (deprecated)
+
+- **Updated base image reference**
+  - Base: tsouche/rust_dev_container:v0.6.6 (was v0.6.5)
+  - Removed musl toolchain, uses native glibc compilation
+
+### Removed
+
+- **Alpine test container removed**
+  - Alpine/musl support discontinued
+  - Reason: Tokio runtime incompatibility with musl libc
+  - Migration: Use Ubuntu test container for binary verification
+
+### Technical Details
+
+- Base image: `tsouche/rust_dev_container:v0.6.6`
+- Test container: Ubuntu 22.04 with glibc runtime
+- Build target: x86_64-unknown-linux-gnu (native, default)
+- Deployment: Ubuntu-based staging/production environments
+
+---
+
 ## [0.6.5] - 2026-01-22
 
 ### Fixed

@@ -2,8 +2,8 @@
 
 **Complete containerized Rust development environment with MongoDB**
 
-**Current Version:** v0.6.5  
-**Base Image:** `tsouche/rust_dev_container:v0.6.5`  
+**Current Version:** v0.6.6  
+**Base Image:** `tsouche/rust_dev_container:v0.6.6`  
 **Last Updated:** January 22, 2026
 
 *For version history and changelog, see [CHANGELOG.md](CHANGELOG.md)*
@@ -27,28 +27,27 @@
 
 - **Platform**: Windows with Docker Desktop
 - **Container**: Rust development environment with SSH access
-- **Base Image**: `tsouche/rust_dev_container:v0.6.5`
-- **Services**: Dev container + MongoDB + Mongo Express + Alpine Test
+- **Base Image**: `tsouche/rust_dev_container:v0.6.6`
+- **Services**: Dev container + MongoDB + Mongo Express + Ubuntu Test
 - **Access**: VS Code Remote SSH to localhost
 
 **Container Features:**
 
 - **Base OS**: Ubuntu 22.04 LTS (development environment)
 - Rust stable toolchain (via rustup)
-- **Cross-Compilation Support**: musl toolchain for building Alpine-compatible binaries
+- **Native glibc Compilation**: Builds for Ubuntu-based deployments
   - Compile in Ubuntu dev environment
-  - Deploy to Alpine-based staging/production containers
-  - **Environment variables properly persisted** (v0.6.5+): OpenSSL paths available in all shell sessions
+  - Deploy to Ubuntu-based staging/production containers
+  - **Environment variables properly persisted** (v0.6.5+): Available in all shell sessions
 - **Docker CLI**: Full Docker functionality from inside container (v0.6.5+)
   - Run Docker commands without leaving dev environment
-  - Automatic Alpine container testing via `docker cp`
+  - Automatic Ubuntu container testing via `docker cp`
   - Proper group permissions for Docker socket access
 - Build tools (gcc, cmake, pkg-config, libssl-dev)
 - MongoDB Shell (mongosh)
 - GitHub CLI (gh)
 - SSH server on port 2222
 - VS Code extensions auto-install
-- Pre-compiled OpenSSL 3.0.13 for musl (paths persisted in shell profiles)
 - Shell aliases and git shortcuts
 - User: rustdev (UID 1026, GID 110, groups: sudo, docker, systemd-journal)
 
@@ -121,7 +120,7 @@ cd C:\path\to\set_backend\src\env_dev
 4. Configures SSH for VS Code
 5. Creates MongoDB init script
 6. Builds Docker images
-7. Starts all services (dev, MongoDB, Mongo Express, Alpine test)
+7. Starts all services (dev, MongoDB, Mongo Express, Ubuntu test)
 
 **First run prompts:**
 
@@ -140,7 +139,7 @@ docker ps
 # - dev-container (port 2222)
 # - dev-mongodb (port 27017)
 # - dev-mongo-express (port 8080)
-# - dev-alpine-test (no external ports)
+# - dev-ubuntu-test (no external ports)
 ```
 
 ---
@@ -247,7 +246,7 @@ cargo build
 
 ## Deployment Scripts
 
-### deploy-dev.ps1 (v0.6.5)
+### deploy-dev.ps1 (v0.6.6)
 
 **Purpose**: Complete environment deployment
 
@@ -265,7 +264,7 @@ cargo build
 - Directory structure creation
 - MongoDB initialization
 - Docker Compose service startup (4 containers)
-- **Automatic Alpine container test** (verifies musl cross-compilation)
+- **Automatic Ubuntu container test** (validates hot-swap deployment workflow)
 
 **Interactive Prompts:**
 
@@ -278,7 +277,7 @@ Options:
 Enter choice (1/2/3) [2]:
 ```
 
-### cleanup.ps1 (v0.6.5)
+### cleanup.ps1 (v0.6.6)
 
 **Purpose**: Complete environment cleanup
 
@@ -298,7 +297,7 @@ Enter choice (1/2/3) [2]:
 
 **Removes:**
 
-- All containers (dev-container, dev-mongodb, dev-mongo-express, dev-alpine-test)
+- All containers (dev-container, dev-mongodb, dev-mongo-express, dev-ubuntu-test)
 - All Docker images
 - Project directory (`C:\rustdev\projects`)
 - MongoDB data (`C:\rustdev\docker\mongodb`)
@@ -310,30 +309,30 @@ Enter choice (1/2/3) [2]:
 - SSH config (`~/.ssh/config`)
 - VS Code settings
 
-### test-alpine.ps1 (v0.6.5)
+### test-ubuntu.ps1 (v0.6.6)
 
-**Purpose**: Test musl cross-compilation with Alpine container
+**Purpose**: Test hot-swap deployment workflow with Ubuntu container (simulates staging/prod deployment)
 
 **Usage:**
 
 ```powershell
-.\test-alpine.ps1
+.\test-ubuntu.ps1
 ```
 
 **What it does:**
 
 1. Creates a simple Rust test program
-2. Compiles it with `x86_64-unknown-linux-musl` target
-3. Copies binary directly to Alpine container using `docker cp`
-4. Executes binary on Alpine Linux 3.19 container
+2. Compiles it with native `x86_64-unknown-linux-gnu` target (glibc)
+3. Copies binary directly to Ubuntu test container using `docker cp`
+4. Executes binary on Ubuntu 22.04 container
 5. Verifies output matches expected result
 
 **When to use:**
 
-- After deployment (runs automatically)
-- After modifying Dockerfile or musl toolchain
-- Before building production images
-- To verify musl dependencies are working
+- Before deploying to NAS staging/production environments
+- To validate hot-swap deployment workflow locally
+- After modifying Dockerfile or runtime dependencies
+- To verify binary compatibility with target Ubuntu environment
 
 **Developer version:**
 
@@ -341,7 +340,7 @@ Developers inside the container can run the same test:
 
 ```bash
 # From inside dev container
-test-alpine
+test-ubuntu
 ```
 
 This bash version performs identical steps with full Docker CLI integration.
@@ -350,15 +349,15 @@ This bash version performs identical steps with full Docker CLI integration.
 
 ```
 ========================================
-Alpine Container Test: SUCCESS
+Ubuntu Container Hot-Swap Test: SUCCESS
 ========================================
 
 Summary:
-  - Rust program created and compiled with musl target
-  - Binary successfully executed on Alpine Linux 3.19
+  - Rust program created and compiled with glibc target
+  - Binary successfully executed on Ubuntu 22.04 container
   - Docker CLI working correctly inside dev container
 
-The musl cross-compilation toolchain is functioning properly!
+Hot-swap deployment workflow validated successfully!
 ```
 
 ---
@@ -373,7 +372,7 @@ The musl cross-compilation toolchain is functioning properly!
 | **Backend** | 5645 | `http://localhost:5645` | Application (after build/run) |
 | **MongoDB** | 27017 | `mongodb://localhost:27017` | Database |
 | **Mongo Express** | 8080 | `http://localhost:8080` | Database admin UI |
-| **Alpine Test** | - | Internal only | musl binary runtime testing |
+| **Ubuntu Test** | - | Internal only | Hot-swap deployment testing |
 
 ### Network Configuration
 
@@ -389,7 +388,7 @@ The Docker Compose configuration creates a custom bridge network with static IP 
 
 - **MongoDB (mongo-db)**: `172.20.0.10`
 - **Mongo Express**: `172.20.0.12`
-- **Alpine Test**: `172.20.0.14`
+- **Ubuntu Test**: `172.20.0.14`
 - **Dev Container**: Dynamic IP assignment from the subnet
 
 **⚠️ Important Notes:**
@@ -512,101 +511,110 @@ cargo build
 
 # Run
 cargo run
-### 4. Cross-Compile for Alpine Staging/Production
+### 4. Build for Ubuntu Staging/Production Deployment
 
 **Development Workflow:**
 
-The dev environment is **Ubuntu 22.04** with a musl cross-compilation toolchain. You develop and test in Ubuntu, then build Alpine-compatible binaries for deployment to staging/production Alpine containers.
+The dev environment is **Ubuntu 22.04** with native glibc compilation. You develop and test in Ubuntu, then build binaries for deployment to Ubuntu-based staging/production containers (also Ubuntu 22.04).
 
 ```bash
-# Develop and test in Ubuntu dev environment (standard target)
+# Develop and test in Ubuntu dev environment (native target)
 cargo build
 cargo test
 cargo run
 
-# When ready to deploy: build for Alpine Linux (musl target)
-cargo build --release --target x86_64-unknown-linux-musl
+# When ready to deploy: build release binary
+cargo build --release
 
-# The resulting binary is statically linked and Alpine-compatible
-# It runs in Alpine containers without any system dependencies
-./target/x86_64-unknown-linux-musl/release/your_app
+# The resulting binary is dynamically linked with glibc
+./target/release/your_app
 
-# Test on local Alpine container (v0.6.5+)
-docker cp ./target/x86_64-unknown-linux-musl/release/your_app dev-alpine-test:/tmp/your_app
-docker exec dev-alpine-test /tmp/your_app --version
+# Test on local Ubuntu test container (hot-swap workflow)
+docker cp ./target/release/your_app dev-ubuntu-test:/app/your_app
+docker exec dev-ubuntu-test /app/your_app --version
 
-# Deploy to Alpine-based staging/production container
-docker cp ./target/x86_64-unknown-linux-musl/release/your_app staging-container:/app/
-# or
-scp ./target/x86_64-unknown-linux-musl/release/your_app user@production:/app/
+# Deploy to Ubuntu-based staging/production container (hot-swap)
+# This mirrors the exact deployment process used on the NAS
+docker cp ./target/release/your_app staging-container:/app/
+docker restart staging-container
+# or via SSH to NAS
+scp ./target/release/your_app admin@nas:/volume1/docker/staging/
+ssh admin@nas "docker restart staging-backend"
 ```
 
 **Why This Works:**
 
 - **Dev environment**: Ubuntu 22.04 with full development tools
-- **musl toolchain**: Cross-compiles to Alpine Linux (static linking)
-- **Pre-compiled OpenSSL**: Built for musl, so dependencies like `reqwest` work seamlessly
-- **Staging/Prod**: Lightweight Alpine containers run the statically-linked binaries
+- **Native glibc**: Same libc as staging/prod, ensures compatibility
+- **System OpenSSL**: Uses Ubuntu's libssl-dev, no custom compilation needed
+- **Staging/Prod**: Ubuntu 22.04 containers run the glibc binaries natively
+- **Hot-swap deployment**: Copy binary to running container, test, restart
 
-**Note**: The dev container itself runs Ubuntu. The musl target produces binaries for Alpine Linux deployment.
+**Note**: Dev, test, staging, and prod all use Ubuntu 22.04 with glibc for maximum compatibility.
 
-### 5. Test on Alpine Container (v0.6.5+)
+### 5. Test Hot-Swap Deployment on Ubuntu Container (v0.6.6+)
 
-The dev environment includes a permanent Alpine test container for verifying musl binaries locally before deployment.
+The dev environment includes a permanent Ubuntu test container for validating the hot-swap deployment workflow locally before deploying to the NAS.
 
 **Quick Test (from inside dev container):**
 
 ```bash
 # Run the built-in test script
-test-alpine
+test-ubuntu
 
 # This will:
 # 1. Create a simple Rust test program
-# 2. Compile it with musl target
-# 3. Copy binary to Alpine using docker cp
-# 4. Execute and verify on Alpine automatically
+# 2. Compile it with native glibc target
+# 3. Copy binary to Ubuntu test container using docker cp
+# 4. Execute and verify on Ubuntu automatically
 ```
 
 **Manual Testing (from inside dev container):**
 
 ```bash
-# Build your musl binary
-cargo build --release --target x86_64-unknown-linux-musl
+# Build your release binary
+cargo build --release
 
-# Copy directly to Alpine container using docker cp
-docker cp ./target/x86_64-unknown-linux-musl/release/your_app dev-alpine-test:/tmp/your_app
+# Copy directly to Ubuntu test container using docker cp (hot-swap)
+docker cp ./target/release/your_app dev-ubuntu-test:/app/your_app
 
-# Execute in Alpine
-docker exec dev-alpine-test /tmp/your_app --version
+# Execute in Ubuntu test container
+docker exec dev-ubuntu-test /app/your_app --version
+
+# Test restart workflow
+docker restart dev-ubuntu-test
+docker exec dev-ubuntu-test /app/your_app --version
 ```
 
 **From Windows host:**
 
 ```powershell
 # Run automated test
-.\test-alpine.ps1
+.\test-ubuntu.ps1
 
 # Or manually test your binary
-docker cp your_app dev-alpine-test:/tmp/your_app
-docker exec dev-alpine-test /tmp/your_app
+docker cp your_app dev-ubuntu-test:/app/your_app
+docker exec dev-ubuntu-test /app/your_app
 
-# Interactive shell in Alpine
-docker exec -it dev-alpine-test /bin/sh
+# Interactive shell in Ubuntu test container
+docker exec -it dev-ubuntu-test /bin/bash
 ```
 
-**Troubleshooting Alpine issues:**
+**Troubleshooting runtime issues:**
 
 ```bash
-# Check binaries in Alpine
-docker exec dev-alpine-test ls -lh /tmp/
+# Check binaries in Ubuntu test container
+docker exec dev-ubuntu-test ls -lh /app/
 
-# Check Alpine version
-docker exec dev-alpine-test cat /etc/alpine-release
+# Check Ubuntu version
+docker exec dev-ubuntu-test cat /etc/os-release
 
-# Install debugging tools in Alpine (temporary)
-docker exec dev-alpine-test apk add --no-cache strace file
-docker exec dev-alpine-test file /tmp/your_app
-docker exec dev-alpine-test ldd /tmp/your_app  # Should show "statically linked"
+# Check binary type and dependencies
+docker exec dev-ubuntu-test file /app/your_app
+docker exec dev-ubuntu-test ldd /app/your_app  # Should show glibc dependencies
+
+# Check library versions
+docker exec dev-ubuntu-test dpkg -l | grep libssl
 ```
 
 ### 6. Development Service Aliases
@@ -636,8 +644,8 @@ cr          # cargo run
 ct          # cargo test
 ccl         # cargo clippy
 
-# Test musl cross-compilation
-test-alpine  # Quick musl binary test
+# Test hot-swap deployment workflow
+test-ubuntu  # Quick deployment test
 
 # Or use cargo-watch (if installed)
 cargo watch -x run
@@ -1093,8 +1101,8 @@ Mongo Express:     http://localhost:8080 (dev/dev123)
 - 🏷️ **Development aliases available**: `dev-h`, `dev-v`, `dev-s`, `dev-c`, `dev-l`
 - 🦀 **Cargo shortcuts**: `cb`, `cr`, `ct`, `ccl`, `cf`, `cu`
 - 🔀 **Git aliases**: `git st`, `git co`, `git br`, `git lg`
-- 🐋 **Cross-compilation for Alpine** - Ubuntu dev environment builds Alpine-compatible binaries
-- 🔐 **Pre-compiled OpenSSL for musl** - Enables Alpine deployment at `/usr/local/musl`
+- 🐋 **Native glibc compilation** - Ubuntu dev environment builds for Ubuntu staging/prod
+- 🔐 **System OpenSSL** - Uses Ubuntu's libssl-dev for native builds
 
 *For version history and feature introduction dates, see [CHANGELOG.md](CHANGELOG.md)*
 

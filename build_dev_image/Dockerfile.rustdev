@@ -1,6 +1,11 @@
 ################################################################################
-# Rust Development Environment - Version 0.6.5
+# Rust Development Environment - Version 0.6.6
 # Shared Dockerfile for all environments (dev, test, prod)
+# 
+# Changes in v0.6.6:
+# - Removed musl toolchain (Alpine support discontinued)
+# - Native glibc builds only (x86_64-unknown-linux-gnu)
+# - Ubuntu staging/prod environments
 ################################################################################
 FROM ubuntu:22.04
 
@@ -25,10 +30,6 @@ RUN apt-get update && apt-get install -y \
     openssh-server \
     sudo \
     gnupg \
-    musl-tools \
-    perl \
-    linux-libc-dev \
-    linux-headers-generic \
     && rm -rf /var/lib/apt/lists/*
 
 ################################################################################
@@ -63,29 +64,6 @@ RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
     apt-get update && \
     apt-get install -y docker-ce-cli && \
     rm -rf /var/lib/apt/lists/*
-
-################################################################################
-# Pre-compile OpenSSL for musl target (Alpine Linux support)
-################################################################################
-WORKDIR /tmp/openssl-build
-
-RUN curl -LO https://www.openssl.org/source/openssl-3.0.13.tar.gz && \
-    tar xzf openssl-3.0.13.tar.gz && \
-    cd openssl-3.0.13 && \
-    KERNEL_HEADERS=$(ls -d /usr/src/linux-headers-* | head -1) && \
-    CC="musl-gcc -idirafter /usr/include -idirafter /usr/include/x86_64-linux-gnu -idirafter $KERNEL_HEADERS/include -idirafter $KERNEL_HEADERS/include/uapi -idirafter $KERNEL_HEADERS/arch/x86/include -idirafter $KERNEL_HEADERS/arch/x86/include/uapi -idirafter $KERNEL_HEADERS/arch/x86/include/generated -idirafter $KERNEL_HEADERS/arch/x86/include/generated/uapi" \
-    ./Configure no-shared no-async --prefix=/usr/local/musl --openssldir=/usr/local/musl/ssl linux-x86_64 && \
-    make -j$(nproc) && \
-    make install && \
-    cd /tmp && \
-    rm -rf /tmp/openssl-build
-
-# Environment variables for musl builds with pre-compiled OpenSSL
-ENV OPENSSL_DIR=/usr/local/musl
-ENV OPENSSL_LIB_DIR=/usr/local/musl/lib64
-ENV OPENSSL_INCLUDE_DIR=/usr/local/musl/include
-ENV OPENSSL_STATIC=1
-ENV PKG_CONFIG_ALLOW_CROSS=1
 
 ################################################################################
 # User Configuration Arguments
@@ -127,22 +105,6 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
     bash -c "echo '. /home/${USERNAME}/.cargo/env' >> /home/${USERNAME}/.bashrc" && \
     bash -c "echo '. /home/${USERNAME}/.cargo/env' >> /home/${USERNAME}/.profile"
 
-# Add OpenSSL environment variables to shell profiles for interactive shells
-RUN echo '' >> /home/${USERNAME}/.bashrc && \
-    echo '# OpenSSL musl configuration' >> /home/${USERNAME}/.bashrc && \
-    echo 'export OPENSSL_DIR=/usr/local/musl' >> /home/${USERNAME}/.bashrc && \
-    echo 'export OPENSSL_LIB_DIR=/usr/local/musl/lib64' >> /home/${USERNAME}/.bashrc && \
-    echo 'export OPENSSL_INCLUDE_DIR=/usr/local/musl/include' >> /home/${USERNAME}/.bashrc && \
-    echo 'export OPENSSL_STATIC=1' >> /home/${USERNAME}/.bashrc && \
-    echo 'export PKG_CONFIG_ALLOW_CROSS=1' >> /home/${USERNAME}/.bashrc && \
-    echo '' >> /home/${USERNAME}/.profile && \
-    echo '# OpenSSL musl configuration' >> /home/${USERNAME}/.profile && \
-    echo 'export OPENSSL_DIR=/usr/local/musl' >> /home/${USERNAME}/.profile && \
-    echo 'export OPENSSL_LIB_DIR=/usr/local/musl/lib64' >> /home/${USERNAME}/.profile && \
-    echo 'export OPENSSL_INCLUDE_DIR=/usr/local/musl/include' >> /home/${USERNAME}/.profile && \
-    echo 'export OPENSSL_STATIC=1' >> /home/${USERNAME}/.profile && \
-    echo 'export PKG_CONFIG_ALLOW_CROSS=1' >> /home/${USERNAME}/.profile
-
 ENV PATH="/home/${USERNAME}/.cargo/bin:${PATH}"
 
 # Configure Rust cache directories and environment variables for optimal performance
@@ -158,36 +120,6 @@ ENV RUSTUP_HOME=/home/${USERNAME}/.rustup
 ENV CARGO_INCREMENTAL=1
 ENV CARGO_BUILD_JOBS=4
 ENV RUST_BACKTRACE=1
-
-################################################################################
-# Add musl Target and Configure Cargo for Alpine Linux Builds
-################################################################################
-USER ${USERNAME}
-
-# Add x86_64-unknown-linux-musl target for statically-linked Alpine binaries
-RUN rustup target add x86_64-unknown-linux-musl
-
-# Configure Cargo to use musl-gcc linker for musl target
-RUN mkdir -p /home/${USERNAME}/.cargo && \
-    echo '[target.x86_64-unknown-linux-musl]' > /home/${USERNAME}/.cargo/config.toml && \
-    echo 'linker = "musl-gcc"' >> /home/${USERNAME}/.cargo/config.toml && \
-    echo 'rustflags = ["-C", "target-feature=+crt-static"]' >> /home/${USERNAME}/.cargo/config.toml
-
-# Verify musl build environment - Stage 1: File existence checks
-RUN echo "Stage 1: Verifying musl toolchain files..." && \
-    rustup target list --installed | grep x86_64-unknown-linux-musl || exit 1 && \
-    command -v musl-gcc >/dev/null 2>&1 || exit 1 && \
-    (test -f /usr/local/musl/lib64/libssl.a || test -f /usr/local/musl/lib/libssl.a) || exit 1 && \
-    (test -f /usr/local/musl/lib64/libcrypto.a || test -f /usr/local/musl/lib/libcrypto.a) || exit 1 && \
-    echo "✓ musl toolchain files verified"
-
-# Verify musl build environment - Stage 2: Compilation test
-RUN echo "Stage 2: Testing musl compilation..." && \
-    echo 'fn main() { println!("musl test ok"); }' > /tmp/test.rs && \
-    rustc --target x86_64-unknown-linux-musl /tmp/test.rs -o /tmp/test && \
-    /tmp/test && \
-    rm /tmp/test.rs /tmp/test && \
-    echo "✓ musl compilation environment ready"
 
 ################################################################################
 # Configure Git (if credentials provided)

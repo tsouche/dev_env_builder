@@ -1,0 +1,50 @@
+################################################################################
+# Ubuntu Test Container - Version 0.6.6
+# Minimal Ubuntu environment for testing hot-swap deployment workflow
+# 
+# Purpose:
+# - Simulate staging/prod deployment process on laptop before NAS deployment
+# - Test hot-swap workflow: copy binary to running container, verify, restart
+# - Validate binary compatibility with target Ubuntu runtime environment
+# - Practice deployment steps locally to catch issues early
+# - No development tools, only runtime dependencies (mirrors staging/prod)
+# 
+# Usage (Hot-Swap Deployment Test):
+# 1. Build binary in dev-container: cargo build --release
+# 2. Copy to running container: docker cp target/release/app ubuntu-test:/app/
+# 3. Test execution: docker exec ubuntu-test /app/app --help
+# 4. Restart if needed: docker restart ubuntu-test
+# 
+# This workflow mirrors the actual staging/prod deployment on NAS
+################################################################################
+FROM ubuntu:22.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+ENV TZ=Europe/Paris
+
+################################################################################
+# Install Runtime Dependencies Only
+################################################################################
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    curl \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+################################################################################
+# Create Test User (matches staging environment)
+################################################################################
+# Note: Using GID 110 to match rustdevteam group from dev environment
+RUN groupadd --gid 110 rustdevteam && \
+    useradd --uid 1026 --gid 110 --shell /bin/bash -m testuser
+
+# Create test directory
+RUN mkdir -p /app && chown 1026:110 /app
+
+WORKDIR /app
+USER testuser
+
+################################################################################
+# Keep Container Running
+################################################################################
+CMD ["tail", "-f", "/dev/null"]

@@ -1,7 +1,7 @@
-# Docker Compose for Development Environment - v0.6.5
+# Docker Compose for Development Environment - v0.6.6
 # Uses pre-built base image tsouche/rust_dev_container:latest
 # Local laptop deployment with SSH and debugging tools
-# Includes Alpine test container for musl binary verification
+# Includes Ubuntu test container for glibc binary verification
 # Docker CLI available inside dev container - binaries copied via docker cp
 
 version: '3.8'
@@ -11,7 +11,7 @@ services:
   dev-container:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.ubuntu-dev
       args:
         - GIT_USER_NAME=${GIT_USER_NAME}
         - GIT_USER_EMAIL=${GIT_USER_EMAIL}
@@ -99,11 +99,15 @@ services:
       dev-network:
         ipv4_address: 172.20.0.12
 
-  # Alpine Test Container - Runtime verification for musl binaries
-  alpine-test:
-    image: ${ALPINE_IMAGE:-alpine:3.19}
-    container_name: ${CONTAINER_ALPINE_TEST:-dev-alpine-test}
-    hostname: alpine-test
+  # Ubuntu Test Container - Hot-swap deployment workflow testing
+  # Simulates staging/prod environment for testing deployment process locally
+  ubuntu-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.ubuntu-test
+    image: ubuntu-test:latest
+    container_name: ${CONTAINER_UBUNTU_TEST:-dev-ubuntu-test}
+    hostname: ubuntu-test
     restart: unless-stopped
     
     # Keep container running

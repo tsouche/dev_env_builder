@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.6] - 2026-01-22
+
+### Changed
+
+- **Migration from Alpine/musl to Ubuntu/glibc**: Complete removal of Alpine/musl support
+  - Base image: Removed musl toolchain, OpenSSL musl compilation, and environment variables
+  - Test container: Replaced `alpine-test` with `ubuntu-test` for hot-swap deployment testing
+  - Build target: Native x86_64-unknown-linux-gnu (glibc) instead of musl cross-compilation
+  - Purpose: Test hot-swap deployment workflow locally before NAS deployment
+
+- **Ubuntu Test Container**: New permanent container for deployment workflow validation
+  - Base: Ubuntu 22.04 with minimal runtime dependencies (libssl3, curl, ca-certificates)
+  - User: testuser (UID 1026, GID 110) matching staging/prod environments
+  - Simulates hot-swap deployment: copy binary to running container, test, restart
+  
+- **Test Scripts Renamed**: `test-alpine.*` → `test-ubuntu.*`
+  - PowerShell: `test-ubuntu.ps1` for Windows host testing
+  - Bash: `test-ubuntu.sh` for testing from inside dev container
+  - Validates glibc compilation and hot-swap deployment workflow
+
+- **Documentation Updates**: All references updated from Alpine/musl to Ubuntu/glibc
+  - Deployment instructions reflect hot-swap workflow
+  - Build commands simplified (no --target flag needed)
+  - Dockerfile renamed: `Dockerfile` → `Dockerfile.ubuntu-dev`
+
+### Removed
+
+- **Alpine/musl Support**: Discontinued due to Tokio runtime incompatibility with musl libc
+  - Removed musl-tools, custom OpenSSL compilation, musl environment variables
+  - Removed x86_64-unknown-linux-musl target and cargo configuration
+  - Removed Alpine test container and associated volumes
+
+### Technical Details
+
+- Version: 0.6.6
+- Base image: tsouche/rust_dev_container:v0.6.6
+- Test container: Ubuntu 22.04 (was Alpine 3.19)
+- Build target: x86_64-unknown-linux-gnu (native glibc)
+- Deployment: Ubuntu-based staging/production environments
+
+---
+
 ## [0.6.3] - 2026-01-22
 
 ### Added

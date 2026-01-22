@@ -58,11 +58,11 @@ This project was made possible with the assistance of **Claude Sonnet 4.5** by A
 
 ---
 
-**Current Version:** v0.6.5  
+**Current Version:** v0.6.6  
 **Last Updated:** January 22, 2026
 
-**Key Features (v0.6.5):**
+**Key Features (v0.6.6):**
 
-- ✅ OpenSSL environment variables properly persisted for musl builds
+- ✅ Native glibc compilation for Ubuntu-based deployments
 - ✅ Docker CLI with proper socket permissions
-- ✅ Simplified Alpine testing via `docker cp`
+- ✅ Ubuntu test container for hot-swap deployment workflow validation

@@ -1,5 +1,53 @@
 # Changelog for BuildDevImage scripts
 
+## Version 0.6.6 (January 22, 2026)
+
+### 🔄 Major Change - Alpine/musl to Ubuntu/glibc Migration
+
+**Removed musl toolchain support, switched to native glibc compilation**
+
+#### Changes
+
+##### Removed musl/Alpine Support
+
+- **Removed musl-tools** from system dependencies
+  - No longer installing musl-gcc, perl, linux-libc-dev, linux-headers-generic
+  - Alpine Linux binary support discontinued due to Tokio runtime incompatibility
+  
+- **Removed custom OpenSSL compilation** for musl target
+  - Removed entire OpenSSL 3.0.13 musl compilation section
+  - No longer needed with native glibc builds
+  - Uses system libssl-dev (already installed)
+
+- **Removed musl environment variables**
+  - Removed OPENSSL_DIR, OPENSSL_LIB_DIR, OPENSSL_INCLUDE_DIR
+  - Removed OPENSSL_STATIC, PKG_CONFIG_ALLOW_CROSS
+  - Removed exports from .bashrc and .profile
+
+- **Removed musl target configuration**
+  - No longer adding x86_64-unknown-linux-musl target
+  - Removed .cargo/config.toml musl configuration
+  - Removed musl verification tests (Stage 1 & 2)
+
+##### Native glibc Only
+
+- **Default build target**: x86_64-unknown-linux-gnu (native)
+  - No custom target flags needed
+  - Uses system OpenSSL via pkg-config
+  - Faster builds, no cross-compilation overhead
+  - Full Tokio runtime support
+
+**Reason for change**: Tokio async runtime has fundamental incompatibility with musl libc, causing segfaults. Ubuntu/glibc is the proven production-ready solution for Rust async applications.
+
+**Migration impact**:
+- Existing projects: Change build target from musl to native (default)
+- Deployment: Switch from Alpine to Ubuntu-based containers
+- Build command: `cargo build --release` (no --target flag needed)
+- Binary size: ~30MB dynamically linked (vs 28MB static musl)
+- Container size: ~60MB Ubuntu (vs ~30MB Alpine)
+
+---
+
 ## Version 0.6.5 (January 22, 2026)
 
 ### 🔧 Fix - Docker Socket Permissions, OpenSSL Environment Variables & Architecture Simplification

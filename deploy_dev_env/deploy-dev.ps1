@@ -1,5 +1,5 @@
 ################################################################################
-# Development Environment Deployment Script - v0.6.5 (PowerShell)
+# Development Environment Deployment Script - v0.6.6 (PowerShell)
 # Deploys to local development laptop with Alpine test container
 ################################################################################
 
@@ -400,23 +400,23 @@ Write-Host "Waiting for containers to initialize..." -ForegroundColor Yellow
 Start-Sleep -Seconds 5
 
 ################################################################################
-# Install Alpine Test Script in Container
+# Install Ubuntu Test Script in Container
 ################################################################################
 
-Write-Header "Installing Alpine Test Script in Container"
+Write-Header "Installing Ubuntu Test Script in Container"
 
-$testScriptSource = Join-Path $ScriptDir "test-alpine.sh"
+$testScriptSource = Join-Path $ScriptDir "test-ubuntu.sh"
 if (Test-Path $testScriptSource) {
     # Copy script to container
-    docker cp $testScriptSource "${env:CONTAINER_NAME}:/tmp/test-alpine.sh" 2>&1 | Out-Null
+    docker cp $testScriptSource "${env:CONTAINER_NAME}:/tmp/test-ubuntu.sh" 2>&1 | Out-Null
     
     if ($LASTEXITCODE -eq 0) {
         # Move to /usr/local/bin and make executable
-        docker exec $env:CONTAINER_NAME bash -c "mv /tmp/test-alpine.sh /usr/local/bin/test-alpine && chmod +x /usr/local/bin/test-alpine" 2>&1 | Out-Null
+        docker exec $env:CONTAINER_NAME bash -c "mv /tmp/test-ubuntu.sh /usr/local/bin/test-ubuntu && chmod +x /usr/local/bin/test-ubuntu" 2>&1 | Out-Null
         
         if ($LASTEXITCODE -eq 0) {
-            Write-Success "Alpine test script installed: test-alpine"
-            Write-Host "  Developers can run 'test-alpine' from inside the container" -ForegroundColor Gray
+            Write-Success "Ubuntu test script installed: test-ubuntu"
+            Write-Host "  Developers can run 'test-ubuntu' from inside the container" -ForegroundColor Gray
         } else {
             Write-Warning-Custom "Failed to install test script"
         }
@@ -499,23 +499,23 @@ Write-Host "  - Shell:     docker-compose -f docker-compose-dev.yml exec dev-con
 Write-Host ""
 
 ################################################################################
-# Test Alpine Container with Musl Binary
+# Test Ubuntu Container with Hot-Swap Deployment
 ################################################################################
 
-Write-Header "Testing Alpine Container with Musl Binary"
+Write-Header "Testing Ubuntu Container with Hot-Swap Deployment"
 
-Write-Host "Running Alpine container test..." -ForegroundColor Cyan
+Write-Host "Running Ubuntu container test..." -ForegroundColor Cyan
 Write-Host ""
 
-& "$ScriptDir\test-alpine.ps1" -ContainerName $env:CONTAINER_NAME -AlpineContainerName $env:CONTAINER_ALPINE_TEST
+& "$ScriptDir\test-ubuntu.ps1" -ContainerName $env:CONTAINER_NAME -UbuntuContainerName $env:CONTAINER_UBUNTU_TEST
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Warning-Custom "Alpine container test failed, but deployment is complete."
+    Write-Warning-Custom "Ubuntu container test failed, but deployment is complete."
     Write-Host "You can run the test manually later:" -ForegroundColor Yellow
-    Write-Host "  .\test-alpine.ps1" -ForegroundColor White
+    Write-Host "  .\test-ubuntu.ps1" -ForegroundColor White
     Write-Host ""
 } else {
     Write-Host "Run this test anytime with:" -ForegroundColor Cyan
-    Write-Host "  .\test-alpine.ps1" -ForegroundColor White
+    Write-Host "  .\test-ubuntu.ps1" -ForegroundColor White
     Write-Host ""
 }

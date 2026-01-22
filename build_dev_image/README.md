@@ -46,36 +46,36 @@ Default: `latest` tag only (if no version specified)
 - **Base**: Ubuntu 22.04
 - **User**: rustdev (UID 1026, GID 110)
 - **Rust**: Installed via rustup (stable toolchain)
-- **Alpine Linux Support**: Pre-configured musl toolchain for Alpine deployments
+- **Native glibc Compilation**: Builds for Ubuntu-based deployments
 - **Features**:
   - SSH server configured and running with host keys
   - VS Code extensions auto-install on first login
   - MongoDB tools (mongosh)
-  - **GitHub CLI (gh)** - New in v0.6.0
-  - Common dev tools (curl, wget, git, build-essential, etc.)
-  - **musl toolchain** - New in v0.6.2:
-    - `x86_64-unknown-linux-musl` target pre-installed
-    - Pre-compiled OpenSSL 3.0.13 for musl in `/usr/local/musl`
-    - Automatic Cargo configuration for musl builds
-    - Build static binaries for Alpine Linux deployment
+  - **GitHub CLI (gh)** - v0.6.0+
+  - **Docker CLI** - v0.6.5+ for container management
+  - Common dev tools (curl, wget, git, build-essential, libssl-dev, pkg-config, etc.)
+  - **Native glibc builds** - v0.6.6+:
+    - Default `x86_64-unknown-linux-gnu` target (native)
+    - Uses system OpenSSL via libssl-dev
+    - Builds for Ubuntu-based staging/production environments
   - **Shell aliases**: ll, la, grep colors, cargo shortcuts (cb, cr, ct, cc, ccl, cf, cu)
   - **Git aliases**: st, co, br, ci, lg, unstage, last
-  - **Dev service functions**: dev-h, dev-v, dev-s, dev-c, dev-l()
+  - **Dev service functions**: dev-h, dev-v, dev-s, dev-c, dev-l
   - Empty `/workspace` directory ready for projects
 
-## Building for Alpine Linux
+## Building for Ubuntu Deployment
 
-The image includes everything needed to build Rust applications that run on Alpine Linux:
+The image is configured for native Ubuntu glibc compilation:
 
 ```bash
-# Build for Alpine Linux (musl)
-cargo build --release --target x86_64-unknown-linux-musl
+# Build for Ubuntu deployment (native glibc)
+cargo build --release
 
-# The resulting binary is statically linked and Alpine-compatible
-./target/x86_64-unknown-linux-musl/release/your_app
+# The resulting binary is dynamically linked with glibc
+./target/release/your_app
 ```
 
-OpenSSL is pre-compiled for musl, so dependencies like `reqwest` with native-tls will work without additional configuration.
+System OpenSSL (libssl-dev) is available via pkg-config, so dependencies like `reqwest` work seamlessly.
 
 ## Troubleshooting
 
@@ -83,7 +83,7 @@ OpenSSL is pre-compiled for musl, so dependencies like `reqwest` with native-tls
 **Docker not running**: Start Docker Desktop
 **Build fails**: Check Docker Desktop has enough resources allocated (recommend 8GB+ RAM for building)
 **DockerHub login fails**: Verify your DockerHub credentials are correct
-**OpenSSL link errors with musl**: The image includes pre-compiled OpenSSL 3.0.13 at `/usr/local/musl`
+**OpenSSL link errors**: The image includes system libssl-dev via pkg-config
 
 ---
-**Last Updated**: 2026-01-21
+**Last Updated**: 2026-01-22
