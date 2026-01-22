@@ -1,5 +1,5 @@
 ################################################################################
-# Alpine Container Test Script - v0.6.3
+# Alpine Container Test Script - v0.6.5
 # Tests musl-compiled Rust binaries on the Alpine container
 ################################################################################
 
@@ -114,42 +114,41 @@ if ($LASTEXITCODE -ne 0) {
 Write-Success "Binary compiled successfully"
 
 ################################################################################
-# Step 4: Copy Binary to Shared Volume
+# Step 4: Copy Binary to Alpine Container
 ################################################################################
 
-Write-Step "Copying binary to shared volume (/alpine-test)..."
+Write-Step "Copying binary to Alpine container..."
 
-$copyResult = docker exec $ContainerName bash -c "cp /tmp/alpine-test/alpine_test /alpine-test/alpine_test && chmod +x /alpine-test/alpine_test 2>&1"
+# Copy from dev container to Windows temp, then to Alpine container
+$tempBinary = Join-Path $env:TEMP "alpine_test"
+
+docker cp ${ContainerName}:/tmp/alpine-test/alpine_test $tempBinary 2>&1 | Out-Null
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error-Custom "Failed to copy binary to shared volume"
-    Write-Host $copyResult -ForegroundColor Red
+    Write-Error-Custom "Failed to copy binary from dev container"
     exit 1
 }
-Write-Success "Binary copied to /alpine-test/alpine_test"
 
-################################################################################
-# Step 5: Verify Binary in Alpine Container
-################################################################################
-
-Write-Step "Verifying binary is accessible in Alpine container..."
-
-$lsResult = docker exec $AlpineContainerName ls -lh /test/alpine_test 2>&1
+docker cp $tempBinary ${AlpineContainerName}:/tmp/alpine_test 2>&1 | Out-Null
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error-Custom "Binary not found in Alpine container"
-    Write-Host $lsResult -ForegroundColor Red
+    Write-Error-Custom "Failed to copy binary to Alpine container"
+    Remove-Item $tempBinary -Force -ErrorAction SilentlyContinue
     exit 1
 }
-Write-Success "Binary found in Alpine container: /test/alpine_test"
+
+# Clean up temp file on Windows
+Remove-Item $tempBinary -Force -ErrorAction SilentlyContinue
+
+Write-Success "Binary copied to Alpine container at /tmp/alpine_test"
 
 ################################################################################
-# Step 6: Execute Binary on Alpine
+# Step 5: Execute Binary on Alpine
 ################################################################################
 
-Write-Step "Executing musl binary on Alpine Linux..."
+Write-Step "Testing binary on Alpine Linux..."
 
-$execResult = docker exec $AlpineContainerName /test/alpine_test 2>&1
+$execResult = docker exec $AlpineContainerName /tmp/alpine_test 2>&1
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error-Custom "Binary execution failed"
@@ -163,7 +162,7 @@ Write-Host "  $execResult" -ForegroundColor White
 Write-Host ""
 
 ################################################################################
-# Step 7: Verify Output
+# Step 6: Verify Output
 ################################################################################
 
 Write-Step "Verifying output..."
@@ -179,7 +178,7 @@ if ($execResult -match [regex]::Escape($expectedOutput)) {
     Write-Host "Summary:" -ForegroundColor Blue
     Write-Host "  - Rust program created and compiled with musl target" -ForegroundColor White
     Write-Host "  - Binary successfully executed on Alpine Linux 3.19" -ForegroundColor White
-    Write-Host "  - Shared volume architecture working correctly" -ForegroundColor White
+    Write-Host "  - Docker CLI working correctly for container-to-container operations" -ForegroundColor White
     Write-Host ""
     Write-Host "The musl cross-compilation toolchain is functioning properly!" -ForegroundColor Green
     Write-Host ""
@@ -194,8 +193,8 @@ if ($execResult -match [regex]::Escape($expectedOutput)) {
 # Cleanup Notification
 ################################################################################
 
-Write-Host "Test files remain in /tmp/alpine-test and /alpine-test/alpine_test" -ForegroundColor Gray
+Write-Host "Test files remain in /tmp/alpine-test" -ForegroundColor Gray
 Write-Host "To clean up manually:" -ForegroundColor Gray
 Write-Host "  docker exec $ContainerName rm -rf /tmp/alpine-test" -ForegroundColor Gray
-Write-Host "  docker exec $ContainerName rm /alpine-test/alpine_test" -ForegroundColor Gray
+Write-Host "  docker exec $AlpineContainerName rm /tmp/alpine_test" -ForegroundColor Gray
 Write-Host ""

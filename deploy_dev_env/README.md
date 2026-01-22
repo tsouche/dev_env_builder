@@ -2,8 +2,8 @@
 
 **Complete containerized Rust development environment with MongoDB**
 
-**Current Version:** v0.6.3  
-**Base Image:** `tsouche/rust_dev_container:v0.6.3`  
+**Current Version:** v0.6.5  
+**Base Image:** `tsouche/rust_dev_container:v0.6.5`  
 **Last Updated:** January 22, 2026
 
 *For version history and changelog, see [CHANGELOG.md](CHANGELOG.md)*
@@ -27,7 +27,7 @@
 
 - **Platform**: Windows with Docker Desktop
 - **Container**: Rust development environment with SSH access
-- **Base Image**: `tsouche/rust_dev_container:v0.6.3`
+- **Base Image**: `tsouche/rust_dev_container:v0.6.5`
 - **Services**: Dev container + MongoDB + Mongo Express + Alpine Test
 - **Access**: VS Code Remote SSH to localhost
 
@@ -38,14 +38,19 @@
 - **Cross-Compilation Support**: musl toolchain for building Alpine-compatible binaries
   - Compile in Ubuntu dev environment
   - Deploy to Alpine-based staging/production containers
+  - **Environment variables properly persisted** (v0.6.5+): OpenSSL paths available in all shell sessions
+- **Docker CLI**: Full Docker functionality from inside container (v0.6.5+)
+  - Run Docker commands without leaving dev environment
+  - Automatic Alpine container testing via `docker cp`
+  - Proper group permissions for Docker socket access
 - Build tools (gcc, cmake, pkg-config, libssl-dev)
 - MongoDB Shell (mongosh)
 - GitHub CLI (gh)
 - SSH server on port 2222
 - VS Code extensions auto-install
-- Pre-compiled OpenSSL 3.0.13 for musl
+- Pre-compiled OpenSSL 3.0.13 for musl (paths persisted in shell profiles)
 - Shell aliases and git shortcuts
-- User: rustdev (UID 1026, GID 110)
+- User: rustdev (UID 1026, GID 110, groups: sudo, docker, systemd-journal)
 
 ---
 
@@ -242,7 +247,7 @@ cargo build
 
 ## Deployment Scripts
 
-### deploy-dev.ps1 (v0.6.3)
+### deploy-dev.ps1 (v0.6.5)
 
 **Purpose**: Complete environment deployment
 
@@ -273,7 +278,7 @@ Options:
 Enter choice (1/2/3) [2]:
 ```
 
-### cleanup.ps1 (v0.6.3)
+### cleanup.ps1 (v0.6.5)
 
 **Purpose**: Complete environment cleanup
 
@@ -305,7 +310,7 @@ Enter choice (1/2/3) [2]:
 - SSH config (`~/.ssh/config`)
 - VS Code settings
 
-### test-alpine.ps1 (v0.6.3) - NEW
+### test-alpine.ps1 (v0.6.5)
 
 **Purpose**: Test musl cross-compilation with Alpine container
 
@@ -319,7 +324,7 @@ Enter choice (1/2/3) [2]:
 
 1. Creates a simple Rust test program
 2. Compiles it with `x86_64-unknown-linux-musl` target
-3. Copies binary to shared volume (`/alpine-test`)
+3. Copies binary directly to Alpine container using `docker cp`
 4. Executes binary on Alpine Linux 3.19 container
 5. Verifies output matches expected result
 
@@ -339,7 +344,7 @@ Developers inside the container can run the same test:
 test-alpine
 ```
 
-This bash version performs identical steps and provides instructions for testing on Alpine.
+This bash version performs identical steps with full Docker CLI integration.
 
 **Expected output:**
 
@@ -351,7 +356,7 @@ Alpine Container Test: SUCCESS
 Summary:
   - Rust program created and compiled with musl target
   - Binary successfully executed on Alpine Linux 3.19
-  - Shared volume architecture working correctly
+  - Docker CLI working correctly inside dev container
 
 The musl cross-compilation toolchain is functioning properly!
 ```
@@ -526,9 +531,9 @@ cargo build --release --target x86_64-unknown-linux-musl
 # It runs in Alpine containers without any system dependencies
 ./target/x86_64-unknown-linux-musl/release/your_app
 
-# Test on local Alpine container (NEW in v0.6.3)
-cp ./target/x86_64-unknown-linux-musl/release/your_app /alpine-test/
-docker exec dev-alpine-test /test/your_app --version
+# Test on local Alpine container (v0.6.5+)
+docker cp ./target/x86_64-unknown-linux-musl/release/your_app dev-alpine-test:/tmp/your_app
+docker exec dev-alpine-test /tmp/your_app --version
 
 # Deploy to Alpine-based staging/production container
 docker cp ./target/x86_64-unknown-linux-musl/release/your_app staging-container:/app/
@@ -545,7 +550,7 @@ scp ./target/x86_64-unknown-linux-musl/release/your_app user@production:/app/
 
 **Note**: The dev container itself runs Ubuntu. The musl target produces binaries for Alpine Linux deployment.
 
-### 5. Test on Alpine Container (NEW in v0.6.3)
+### 5. Test on Alpine Container (v0.6.5+)
 
 The dev environment includes a permanent Alpine test container for verifying musl binaries locally before deployment.
 
@@ -558,8 +563,8 @@ test-alpine
 # This will:
 # 1. Create a simple Rust test program
 # 2. Compile it with musl target
-# 3. Copy to shared volume
-# 4. Provide instructions to test on Alpine
+# 3. Copy binary to Alpine using docker cp
+# 4. Execute and verify on Alpine automatically
 ```
 
 **Manual Testing (from inside dev container):**
@@ -568,11 +573,11 @@ test-alpine
 # Build your musl binary
 cargo build --release --target x86_64-unknown-linux-musl
 
-# Copy to shared volume
-cp ./target/x86_64-unknown-linux-musl/release/your_app /alpine-test/
+# Copy directly to Alpine container using docker cp
+docker cp ./target/x86_64-unknown-linux-musl/release/your_app dev-alpine-test:/tmp/your_app
 
-# From Windows host, test in Alpine:
-# PowerShell: docker exec dev-alpine-test /test/your_app --version
+# Execute in Alpine
+docker exec dev-alpine-test /tmp/your_app --version
 ```
 
 **From Windows host:**
@@ -582,7 +587,8 @@ cp ./target/x86_64-unknown-linux-musl/release/your_app /alpine-test/
 .\test-alpine.ps1
 
 # Or manually test your binary
-docker exec dev-alpine-test /test/your_app
+docker cp your_app dev-alpine-test:/tmp/your_app
+docker exec dev-alpine-test /tmp/your_app
 
 # Interactive shell in Alpine
 docker exec -it dev-alpine-test /bin/sh
@@ -591,19 +597,16 @@ docker exec -it dev-alpine-test /bin/sh
 **Troubleshooting Alpine issues:**
 
 ```bash
-# Check what's in the shared volume (from dev container)
-ls -lh /alpine-test/
-
-# Or from Windows
-docker exec dev-alpine-test ls -lh /test/
+# Check binaries in Alpine
+docker exec dev-alpine-test ls -lh /tmp/
 
 # Check Alpine version
 docker exec dev-alpine-test cat /etc/alpine-release
 
 # Install debugging tools in Alpine (temporary)
 docker exec dev-alpine-test apk add --no-cache strace file
-docker exec dev-alpine-test file /test/your_app
-docker exec dev-alpine-test ldd /test/your_app  # Should show "statically linked"
+docker exec dev-alpine-test file /tmp/your_app
+docker exec dev-alpine-test ldd /tmp/your_app  # Should show "statically linked"
 ```
 
 ### 6. Development Service Aliases

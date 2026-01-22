@@ -1,6 +1,6 @@
 ################################################################################
 # SET Backend Development Environment
-# Base: tsouche/rust_dev_container:latest (v0.6.3+)
+# Base: tsouche/rust_dev_container:latest (v0.6.5+)
 # 
 # The base image already provides:
 # - Ubuntu 22.04 LTS

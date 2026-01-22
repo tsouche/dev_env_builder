@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# Alpine Container Test Script - v0.6.3
+# Alpine Container Test Script - v0.6.5
 # Run from inside dev container to test musl cross-compilation
 ################################################################################
 
@@ -15,8 +15,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 ALPINE_CONTAINER="dev-alpine-test"
-TEST_DIR="/tmp/alpine-test"
-SHARED_VOL="/alpine-test"
+TEST_DIR="$HOME/.alpine-test"
 BINARY_NAME="alpine_test"
 
 echo ""
@@ -31,6 +30,8 @@ echo ""
 
 echo -e "${YELLOW}[STEP]${NC} Creating test Rust program..."
 
+# Create directory with proper permissions
+rm -rf "$TEST_DIR" 2>/dev/null || true
 mkdir -p "$TEST_DIR"
 
 cat > "$TEST_DIR/main.rs" << 'EOF'
@@ -52,6 +53,11 @@ echo -e "${GREEN}[OK]${NC} Test program created at $TEST_DIR/main.rs"
 
 echo -e "${YELLOW}[STEP]${NC} Compiling for x86_64-unknown-linux-musl target..."
 
+# Source Cargo environment if needed (for SSH non-interactive shells)
+if [ -f "$HOME/.cargo/env" ]; then
+    source "$HOME/.cargo/env"
+fi
+
 cd "$TEST_DIR"
 if ! rustc --target x86_64-unknown-linux-musl main.rs -o "$BINARY_NAME" 2>&1; then
     echo -e "${RED}[ERROR]${NC} Compilation failed"
@@ -66,91 +72,75 @@ fi
 echo -e "${GREEN}[OK]${NC} Binary compiled successfully"
 
 ################################################################################
-# Step 3: Copy Binary to Shared Volume
+# Step 3: Copy Binary to Alpine Container
 ################################################################################
 
-echo -e "${YELLOW}[STEP]${NC} Copying binary to shared volume ($SHARED_VOL)..."
+echo -e "${YELLOW}[STEP]${NC} Copying binary to Alpine container..."
 
-cp "$TEST_DIR/$BINARY_NAME" "$SHARED_VOL/$BINARY_NAME"
-chmod +x "$SHARED_VOL/$BINARY_NAME"
-
-if [ ! -f "$SHARED_VOL/$BINARY_NAME" ]; then
-    echo -e "${RED}[ERROR]${NC} Failed to copy binary to shared volume"
+# Check if docker CLI is available
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}[ERROR]${NC} Docker CLI not available inside this container"
+    echo "This script requires Docker CLI to be installed in the base image"
     exit 1
 fi
 
-echo -e "${GREEN}[OK]${NC} Binary copied to $SHARED_VOL/$BINARY_NAME"
+# Copy binary to Alpine container using docker cp
+if ! docker cp "$TEST_DIR/$BINARY_NAME" "$ALPINE_CONTAINER:/tmp/$BINARY_NAME" 2>&1; then
+    echo -e "${RED}[ERROR]${NC} Failed to copy binary to Alpine container"
+    exit 1
+fi
+
+echo -e "${GREEN}[OK]${NC} Binary copied to Alpine container at /tmp/$BINARY_NAME"
 
 ################################################################################
-# Step 4: Test on Alpine Container
+# Step 4: Execute Binary on Alpine Container
 ################################################################################
 
 echo -e "${YELLOW}[STEP]${NC} Testing binary on Alpine Linux container..."
 echo ""
 
-# Check if docker CLI is available in the container
-if command -v docker &> /dev/null; then
-    # Docker CLI available - run the test directly
-    echo -e "${CYAN}Executing on Alpine container...${NC}"
+echo -e "${CYAN}Executing on Alpine container...${NC}"
+
+OUTPUT=$(docker exec "$ALPINE_CONTAINER" "/tmp/$BINARY_NAME" 2>&1)
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -eq 0 ]; then
+    echo -e "${CYAN}Output from Alpine container:${NC}"
+    echo "  $OUTPUT"
+    echo ""
     
-    OUTPUT=$(docker exec "$ALPINE_CONTAINER" "/test/$BINARY_NAME" 2>&1)
-    EXIT_CODE=$?
-    
-    if [ $EXIT_CODE -eq 0 ]; then
-        echo -e "${CYAN}Output from Alpine container:${NC}"
-        echo "  $OUTPUT"
+    EXPECTED="Test musl-compiled program running on Alpine container: ok"
+    if [[ "$OUTPUT" == *"$EXPECTED"* ]]; then
+        echo -e "${GREEN}[OK]${NC} Output verification passed!"
         echo ""
-        
-        EXPECTED="Test musl-compiled program running on Alpine container: ok"
-        if [[ "$OUTPUT" == *"$EXPECTED"* ]]; then
-            echo -e "${GREEN}[OK]${NC} Output verification passed!"
-            echo ""
-            echo "========================================"
-            echo -e "${GREEN}Alpine Container Test: SUCCESS${NC}"
-            echo "========================================"
-            echo ""
-            echo "Summary:"
-            echo "  - Rust program created and compiled with musl target"
-            echo "  - Binary successfully executed on Alpine Linux 3.19"
-            echo "  - Shared volume architecture working correctly"
-            echo ""
-            echo "The musl cross-compilation toolchain is functioning properly!"
-        else
-            echo -e "${RED}[ERROR]${NC} Output verification failed"
-            echo "Expected: $EXPECTED"
-            echo "Got: $OUTPUT"
-            exit 1
-        fi
+        echo "========================================"
+        echo -e "${GREEN}Alpine Container Test: SUCCESS${NC}"
+        echo "========================================"
+        echo ""
+        echo "Summary:"
+        echo "  - Rust program created and compiled with musl target"
+        echo "  - Binary successfully executed on Alpine Linux 3.19"
+        echo "  - Docker CLI working correctly inside dev container"
+        echo ""
+        echo "The musl cross-compilation toolchain is functioning properly!"
     else
-        echo -e "${RED}[ERROR]${NC} Binary execution failed on Alpine"
-        echo "$OUTPUT"
+        echo -e "${RED}[ERROR]${NC} Output verification failed"
+        echo "Expected: $EXPECTED"
+        echo "Got: $OUTPUT"
         exit 1
     fi
 else
-    # Docker CLI not available - provide instructions
-    echo -e "${CYAN}Binary ready for testing!${NC}"
-    echo ""
-    echo "The binary has been compiled and copied to the shared volume."
-    echo ""
-    echo -e "${YELLOW}To test it on the Alpine container:${NC}"
-    echo ""
-    echo "  From Windows PowerShell:"
-    echo "    docker exec $ALPINE_CONTAINER /test/$BINARY_NAME"
-    echo ""
-    echo "  Or from another terminal with docker access:"
-    echo "    docker exec $ALPINE_CONTAINER /test/$BINARY_NAME"
-    echo ""
-    echo "Expected output:"
-    echo "  Test musl-compiled program running on Alpine container: ok"
+    echo -e "${RED}[ERROR]${NC} Binary execution failed on Alpine"
+    echo "$OUTPUT"
+    exit 1
 fi
 
 echo ""
-echo -e "${CYAN}Cleanup:${NC}"
-echo "  Test files remain in:"
-echo "    - $TEST_DIR/"
-echo "    - $SHARED_VOL/$BINARY_NAME"
+echo -e "${CYAN}Test files location:${NC}"
+echo "  - Source: $TEST_DIR/"
+echo "  - Binary: $TEST_DIR/$BINARY_NAME"
 echo ""
-echo "  To clean up:"
-echo "    rm -rf $TEST_DIR"
-echo "    rm $SHARED_VOL/$BINARY_NAME"
+echo -e "${CYAN}Cleanup:${NC}"
+echo "  rm -rf $TEST_DIR"
+echo "  docker exec $ALPINE_CONTAINER rm /tmp/$BINARY_NAME"
 echo ""

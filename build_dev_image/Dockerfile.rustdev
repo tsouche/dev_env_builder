@@ -1,5 +1,5 @@
 ################################################################################
-# Rust Development Environment - Version 0.6.3
+# Rust Development Environment - Version 0.6.5
 # Shared Dockerfile for all environments (dev, test, prod)
 ################################################################################
 FROM ubuntu:22.04
@@ -54,6 +54,17 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | \
     rm -rf /var/lib/apt/lists/*
 
 ################################################################################
+# Install Docker CLI
+################################################################################
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+    gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu jammy stable" | \
+    tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y docker-ce-cli && \
+    rm -rf /var/lib/apt/lists/*
+
+################################################################################
 # Pre-compile OpenSSL for musl target (Alpine Linux support)
 ################################################################################
 WORKDIR /tmp/openssl-build
@@ -87,11 +98,18 @@ ARG GIT_USER_NAME=""
 ARG GIT_USER_EMAIL=""
 
 ################################################################################
-# Create Development User
+# Create Development User with Docker Access
 ################################################################################
-RUN groupadd --gid ${USER_GID} ${GROUPNAME} || true && \
+# Create docker group with GID that typically matches Docker socket group
+# Note: On most systems docker.sock is owned by root:docker (GID varies)
+# On Windows Docker Desktop, it may be owned by systemd-journal (GID 101)
+# We'll create the group and add user; socket permissions handled at runtime
+RUN groupadd --gid 999 docker || true && \
+    groupadd --gid ${USER_GID} ${GROUPNAME} || true && \
     useradd --uid ${USER_UID} --gid ${USER_GID} --shell /bin/bash -m ${USERNAME} || true && \
     usermod -aG sudo ${USERNAME} && \
+    usermod -aG docker ${USERNAME} && \
+    usermod -aG systemd-journal ${USERNAME} && \
     echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/${USERNAME} && \
     chmod 0440 /etc/sudoers.d/${USERNAME}
 
@@ -108,6 +126,22 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --de
     /home/${USERNAME}/.cargo/bin/rustc --version && \
     bash -c "echo '. /home/${USERNAME}/.cargo/env' >> /home/${USERNAME}/.bashrc" && \
     bash -c "echo '. /home/${USERNAME}/.cargo/env' >> /home/${USERNAME}/.profile"
+
+# Add OpenSSL environment variables to shell profiles for interactive shells
+RUN echo '' >> /home/${USERNAME}/.bashrc && \
+    echo '# OpenSSL musl configuration' >> /home/${USERNAME}/.bashrc && \
+    echo 'export OPENSSL_DIR=/usr/local/musl' >> /home/${USERNAME}/.bashrc && \
+    echo 'export OPENSSL_LIB_DIR=/usr/local/musl/lib64' >> /home/${USERNAME}/.bashrc && \
+    echo 'export OPENSSL_INCLUDE_DIR=/usr/local/musl/include' >> /home/${USERNAME}/.bashrc && \
+    echo 'export OPENSSL_STATIC=1' >> /home/${USERNAME}/.bashrc && \
+    echo 'export PKG_CONFIG_ALLOW_CROSS=1' >> /home/${USERNAME}/.bashrc && \
+    echo '' >> /home/${USERNAME}/.profile && \
+    echo '# OpenSSL musl configuration' >> /home/${USERNAME}/.profile && \
+    echo 'export OPENSSL_DIR=/usr/local/musl' >> /home/${USERNAME}/.profile && \
+    echo 'export OPENSSL_LIB_DIR=/usr/local/musl/lib64' >> /home/${USERNAME}/.profile && \
+    echo 'export OPENSSL_INCLUDE_DIR=/usr/local/musl/include' >> /home/${USERNAME}/.profile && \
+    echo 'export OPENSSL_STATIC=1' >> /home/${USERNAME}/.profile && \
+    echo 'export PKG_CONFIG_ALLOW_CROSS=1' >> /home/${USERNAME}/.profile
 
 ENV PATH="/home/${USERNAME}/.cargo/bin:${PATH}"
 

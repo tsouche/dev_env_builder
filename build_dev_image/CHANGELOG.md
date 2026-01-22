@@ -1,5 +1,125 @@
 # Changelog for BuildDevImage scripts
 
+## Version 0.6.5 (January 22, 2026)
+
+### 🔧 Fix - Docker Socket Permissions, OpenSSL Environment Variables & Architecture Simplification
+
+**Proper Docker group membership, environment variable persistence, and simplified Alpine testing workflow**
+
+#### Fixes
+
+##### OpenSSL Environment Variables for Interactive Shells
+
+- **Added OpenSSL environment variable exports** to `.bashrc` and `.profile`
+  - Variables were set via `ENV` directives but not available in SSH/terminal sessions
+  - Caused musl builds to fail from interactive shells (SSH, VS Code terminal)
+  - Now properly persisted and exported in both shell profile files for login/interactive shells
+
+**Why both ENV and shell exports are needed:**
+- `ENV` directives: Available to non-interactive processes (`docker exec`, VS Code tasks)
+- Shell exports: Available in interactive sessions (SSH, terminal, `bash -l`)
+
+**Variables now persisted:**
+```bash
+export OPENSSL_DIR=/usr/local/musl
+export OPENSSL_LIB_DIR=/usr/local/musl/lib64
+export OPENSSL_INCLUDE_DIR=/usr/local/musl/include
+export OPENSSL_STATIC=1
+export PKG_CONFIG_ALLOW_CROSS=1
+```
+
+**Impact:**
+- ✅ Musl builds now work from SSH sessions
+- ✅ Musl builds now work from VS Code terminal
+- ✅ Environment variables properly inherited by all shell sessions
+- ✅ Consistent behavior across all access methods
+
+##### Docker Group Membership
+
+- **Docker group** created in base image (GID 999)
+  - rustdev user added to docker group during image build
+  - Ensures Docker socket access when mounted from host
+  - Fixes permission denied errors when running Docker commands
+
+##### Simplified Alpine Testing Architecture
+
+- **Removed shared volume mount** between dev and Alpine containers
+  - Previous: Shared `/alpine-test` volume with complex permissions
+  - New: Direct `docker cp` from dev container to Alpine container
+  - Eliminates all volume permission issues
+  - Simpler, more reliable workflow
+
+##### Why This Matters
+
+- **SSH access**: Docker commands now work when connecting via SSH
+  - Previously: Only worked via `docker exec` (runs as root)
+  - Now: Works for rustdev user in all connection modes
+- **No permission issues**: Binary copying uses `docker cp` (always works)
+- **test-alpine script**: Fully functional via SSH or terminal
+- **Cleaner architecture**: No intermediate shared volumes needed
+
+#### Technical Details
+
+- Base image: `tsouche/rust_dev_container:v0.6.5`
+- Docker group GID: 999 (common default across Docker installations)
+- User membership: rustdev → docker, sudo, rustdevteam groups
+- Socket mount: `/var/run/docker.sock` (configured in deployment)
+- Alpine testing: `docker cp` + `docker exec` (no shared volumes)
+
+#### Upgrade Notes
+
+- Existing v0.6.4 deployments should upgrade to v0.6.5
+- Shared volume `alpine-test-binaries` no longer needed
+- Redeploy dev environment to apply simplified architecture
+
+---
+
+## Version 0.6.4 (January 22, 2026)
+
+### 🐳 Enhancement - Docker CLI Integration
+
+**Added Docker CLI to base image for developer testing capabilities**
+
+#### New Features
+
+##### Docker CLI Installed Natively
+
+- **Docker CLI** included in base image
+  - Enables developers to run Docker commands from inside dev container
+  - Required for `test-alpine` script to execute tests automatically
+  - Works seamlessly with Docker socket mount from host
+
+##### Why This Matters
+
+- **test-alpine command**: Now automatically executes Alpine tests
+  - Previously: Script only prepared binary, user had to test manually
+  - Now: Script compiles AND tests on Alpine in one command
+- **Developer workflow**: Run `test-alpine` and get immediate results
+- **CI/CD ready**: Automated testing without manual intervention
+
+#### Technical Details
+
+- Base image: `tsouche/rust_dev_container:v0.6.4`
+- Docker CLI: Latest from official Docker repository (Ubuntu Jammy)
+- Requires: Docker socket mount (`/var/run/docker.sock`)
+- No breaking changes: Fully compatible with v0.6.3
+
+#### Usage
+
+```bash
+# From inside dev container
+test-alpine
+
+# Automatically:
+# 1. Creates test Rust program
+# 2. Compiles with musl target
+# 3. Copies to shared volume
+# 4. Executes on Alpine container
+# 5. Verifies output
+```
+
+---
+
 ## Version 0.6.3 (January 22, 2026)
 
 ### 🔧 Enhancement - Improved Build Verification

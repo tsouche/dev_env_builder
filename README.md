@@ -58,5 +58,11 @@ This project was made possible with the assistance of **Claude Sonnet 4.5** by A
 
 ---
 
-**Current Version:** v0.6.3  
+**Current Version:** v0.6.5  
 **Last Updated:** January 22, 2026
+
+**Key Features (v0.6.5):**
+
+- ✅ OpenSSL environment variables properly persisted for musl builds
+- ✅ Docker CLI with proper socket permissions
+- ✅ Simplified Alpine testing via `docker cp`

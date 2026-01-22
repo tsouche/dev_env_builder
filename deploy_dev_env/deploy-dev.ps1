@@ -1,5 +1,5 @@
 ################################################################################
-# Development Environment Deployment Script - v0.6.3 (PowerShell)
+# Development Environment Deployment Script - v0.6.5 (PowerShell)
 # Deploys to local development laptop with Alpine test container
 ################################################################################
 
@@ -400,7 +400,7 @@ Write-Host "Waiting for containers to initialize..." -ForegroundColor Yellow
 Start-Sleep -Seconds 5
 
 ################################################################################
-# Copy Test Script to Dev Container
+# Install Alpine Test Script in Container
 ################################################################################
 
 Write-Header "Installing Alpine Test Script in Container"

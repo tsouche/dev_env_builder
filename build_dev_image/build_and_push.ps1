@@ -113,14 +113,23 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "OK Build successful" -ForegroundColor Green
 Write-Host ""
 
-# Verify Alpine runtime compatibility
 Write-Host "[4/7] Verifying Alpine runtime compatibility..." -ForegroundColor Yellow
 
 $TEST_CONTAINER = "rust-dev-test-$((Get-Date).Ticks)"
 $ALPINE_CONTAINER = "alpine-test-$((Get-Date).Ticks)"
-$TEST_BINARY = "musl-test-$((Get-Date).Ticks)"
+$TEST_BINARY = "musl-test"
+$tempRustFile = Join-Path $env:TEMP "test.rs"
+$tempBinaryPath = Join-Path $env:TEMP $TEST_BINARY
 
 try {
+    # Create Rust source file on Windows (avoids heredoc quoting issues)
+    Write-Host "  Creating test Rust program..." -ForegroundColor Cyan
+    @'
+fn main() {
+    println!("Alpine runtime verification successful");
+}
+'@ | Out-File -FilePath $tempRustFile -Encoding UTF8 -NoNewline
+    
     # Start temporary dev container
     Write-Host "  Starting test container..." -ForegroundColor Cyan
     docker run -d --name $TEST_CONTAINER "${FULL_IMAGE}:latest" tail -f /dev/null | Out-Null
@@ -129,14 +138,17 @@ try {
         throw "Failed to start test container"
     }
     
-    # Compile test program with musl
-    Write-Host "  Compiling musl test program..." -ForegroundColor Cyan
-    $compileCmd = @"
-echo 'fn main() { println!("Alpine runtime verification successful"); }' > /tmp/test.rs && \
-rustc --target x86_64-unknown-linux-musl /tmp/test.rs -o /tmp/$TEST_BINARY
-"@
+    # Copy Rust source to container
+    Write-Host "  Copying source to container..." -ForegroundColor Cyan
+    docker cp $tempRustFile "${TEST_CONTAINER}:/tmp/test.rs" | Out-Null
     
-    docker exec $TEST_CONTAINER bash -c $compileCmd | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to copy source file"
+    }
+    
+    # Compile with musl target
+    Write-Host "  Compiling musl test program..." -ForegroundColor Cyan
+    docker exec $TEST_CONTAINER rustc --target x86_64-unknown-linux-musl /tmp/test.rs -o /tmp/$TEST_BINARY 2>&1 | Out-Null
     
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to compile test program"
@@ -144,8 +156,7 @@ rustc --target x86_64-unknown-linux-musl /tmp/test.rs -o /tmp/$TEST_BINARY
     
     # Copy binary from dev container to host
     Write-Host "  Copying binary to host..." -ForegroundColor Cyan
-    $tempPath = Join-Path $env:TEMP $TEST_BINARY
-    docker cp "${TEST_CONTAINER}:/tmp/$TEST_BINARY" $tempPath | Out-Null
+    docker cp "${TEST_CONTAINER}:/tmp/$TEST_BINARY" $tempBinaryPath | Out-Null
     
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to copy binary from container"
@@ -153,13 +164,17 @@ rustc --target x86_64-unknown-linux-musl /tmp/test.rs -o /tmp/$TEST_BINARY
     
     # Run Alpine container and test binary
     Write-Host "  Testing binary on Alpine Linux..." -ForegroundColor Cyan
-    docker run --rm --name $ALPINE_CONTAINER -v "${tempPath}:/test" alpine:3.19 /test
+    $alpineOutput = docker run --rm -v "${tempBinaryPath}:/test/${TEST_BINARY}" alpine:3.19 /test/$TEST_BINARY 2>&1
     
     if ($LASTEXITCODE -ne 0) {
         throw "Binary failed to execute on Alpine"
     }
     
-    Write-Host "OK Alpine runtime verification passed" -ForegroundColor Green
+    if ($alpineOutput -match "Alpine runtime verification successful") {
+        Write-Host "OK Alpine runtime verification passed" -ForegroundColor Green
+    } else {
+        throw "Binary output did not match expected result"
+    }
     
 } catch {
     Write-Host "WARNING: Alpine runtime verification failed: $_" -ForegroundColor Yellow
@@ -173,12 +188,12 @@ rustc --target x86_64-unknown-linux-musl /tmp/test.rs -o /tmp/$TEST_BINARY
         docker rm -f $TEST_CONTAINER 2>&1 | Out-Null
     }
     
-    if (docker ps -a --format "{{.Names}}" | Select-String -Pattern "^${ALPINE_CONTAINER}$") {
-        docker rm -f $ALPINE_CONTAINER 2>&1 | Out-Null
+    if (Test-Path $tempRustFile) {
+        Remove-Item $tempRustFile -Force -ErrorAction SilentlyContinue
     }
     
-    if (Test-Path $tempPath) {
-        Remove-Item $tempPath -Force -ErrorAction SilentlyContinue
+    if (Test-Path $tempBinaryPath) {
+        Remove-Item $tempBinaryPath -Force -ErrorAction SilentlyContinue
     }
 }
 Write-Host ""

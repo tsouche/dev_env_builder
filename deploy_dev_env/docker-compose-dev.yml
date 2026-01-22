@@ -1,7 +1,8 @@
-# Docker Compose for Development Environment - v0.6.3
+# Docker Compose for Development Environment - v0.6.5
 # Uses pre-built base image tsouche/rust_dev_container:latest
 # Local laptop deployment with SSH and debugging tools
 # Includes Alpine test container for musl binary verification
+# Docker CLI available inside dev container - binaries copied via docker cp
 
 version: '3.8'
 
@@ -40,8 +41,8 @@ services:
       # - ${VOLUME_CARGO_GIT_CACHE}:/home/${USERNAME:-rustdev}/.cargo/git
       # - ${VOLUME_RUSTUP_CACHE}:/home/${USERNAME:-rustdev}/.rustup
       - ${VOLUME_TARGET_CACHE}:/workspace/target
-      # Shared volume with Alpine test container
-      - alpine-test-binaries:/alpine-test
+      # Docker socket for container management from inside dev container
+      - /var/run/docker.sock:/var/run/docker.sock
     
     networks:
       - ${NETWORK_NAME:-dev-network}
@@ -108,18 +109,14 @@ services:
     # Keep container running
     command: tail -f /dev/null
     
-    volumes:
-      # Shared volume for testing musl binaries
-      - alpine-test-binaries:/test
+    # No volumes needed - binaries copied via docker cp
     
     networks:
       dev-network:
         ipv4_address: 172.20.0.14
 
 # All volumes are bind mounts to host directories
-volumes:
-  alpine-test-binaries:
-    name: dev-alpine-test-binaries
+volumes: {}
 
 networks:
   dev-network:

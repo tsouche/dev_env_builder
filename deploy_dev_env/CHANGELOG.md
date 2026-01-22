@@ -6,6 +6,90 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.5] - 2026-01-22
+
+### Fixed
+
+- **OpenSSL Environment Variables Properly Persisted**: Added exports to shell profiles for full persistence
+  - OpenSSL environment variables now **properly persisted** and available in all shell sessions
+  - Variables exported in both `~/.bashrc` and `~/.profile` for complete coverage
+  - **Fixes musl build failures** from interactive shells (SSH, VS Code terminal)
+  - Previously only worked via `docker exec` due to ENV directives alone
+  - **Impact**: Cargo builds with musl dependencies (like `reqwest`, `tokio-tls`) now work from any shell
+  - Variables persisted: `OPENSSL_DIR`, `OPENSSL_LIB_DIR`, `OPENSSL_INCLUDE_DIR`, `OPENSSL_STATIC`, `PKG_CONFIG_ALLOW_CROSS`
+
+- **Docker Socket Permissions**: Resolved permission issues for Docker CLI access
+  - rustdev user now member of both `docker` (999) and `systemd-journal` (101) groups
+  - Docker commands work correctly via SSH, VS Code terminal, and docker exec
+  - Fixes "permission denied" errors when accessing Docker socket
+
+### Changed
+
+- **Simplified Alpine Testing Architecture**: Removed shared volume complexity
+  - **Previous**: Shared volume mount between dev and Alpine containers
+  - **New**: Direct `docker cp` from dev container to Alpine container
+  - Eliminates all volume permission issues
+  - Simpler, more reliable workflow
+  - No intermediate volumes needed
+- **test-alpine.ps1**: Updated to use `docker cp` approach
+  - Copies binary via Windows temp directory to Alpine container
+  - More reliable than shared volume
+- **test-alpine.sh**: Updated to use `docker cp` approach
+  - Compiles in user's home directory (`~/.alpine-test`)
+  - Copies binary directly to Alpine container using Docker CLI
+  - Automatic execution and verification
+- **docker-compose-dev.yml**: Removed `alpine-test-binaries` volume
+  - Cleaner configuration
+  - No volume management needed
+- **deploy-dev.ps1**: Removed shared volume permission configuration
+  - No longer needed with `docker cp` approach
+
+### Technical Details
+
+- Base image: `tsouche/rust_dev_container:v0.6.5`
+- User groups: rustdev → rustdevteam (110), sudo (27), systemd-journal (101), docker (999)
+- Alpine testing: `docker cp` + `docker exec` (no shared volumes)
+- Full Docker CLI functionality from inside container
+- Works seamlessly on Windows Docker Desktop
+
+### Upgrade Notes
+
+- Existing v0.6.4 deployments should upgrade to v0.6.5
+- Shared volume `alpine-test-binaries` no longer used (can be removed)
+- No configuration changes needed - automatic on redeploy
+- All existing workflows remain compatible
+
+---
+
+## [0.6.4] - 2026-01-22
+
+### Enhanced
+
+- **Docker CLI Integration**: Docker CLI now available inside dev container
+  - Base image upgraded from v0.6.3 to v0.6.4
+  - Docker socket mounted: `/var/run/docker.sock`
+  - Enables Docker commands from within dev container
+  - test-alpine script can now automatically execute tests on Alpine container
+  - No more manual `docker exec` commands needed
+
+### Changed
+
+- **test-alpine.sh**: Enhanced with automatic Alpine container execution
+  - Compiles Rust program with musl target
+  - Copies binary to shared volume
+  - **NEW**: Automatically executes on Alpine container using Docker CLI
+  - Shows complete test results in one command
+  - Developer workflow: just run `test-alpine` inside container
+
+### Technical Details
+
+- Base image: `tsouche/rust_dev_container:v0.6.4`
+- Docker CLI version: Latest from official Docker repository
+- Docker socket permissions handled automatically by Docker Desktop
+- Backward compatible with v0.6.3 workflows
+
+---
+
 ## [0.6.3] - 2026-01-22
 
 ### Added
