@@ -16,7 +16,7 @@
 ### Deploy Development Environment
 
 ```powershell
-cd C:\rustdev\dev_env_builder\v0.5\env_dev
+cd C:\rustdev\dev_env_builder\deploy_dev_env
 .\deploy-dev.ps1
 ```
 
@@ -27,6 +27,7 @@ cd C:\rustdev\dev_env_builder\v0.5\env_dev
 3. Select: **rust-dev**
 4. Open folder: `/workspace`
 5. Create projects directory and clone your repository:
+
    ```bash
    mkdir /workspace/projects
    cd /workspace/projects
@@ -39,7 +40,9 @@ cd C:\rustdev\dev_env_builder\v0.5\env_dev
 
 ## � Full Documentation
 
-For complete documentation, see **[v0.5/env_dev/README.md](v0.5/env_dev/README.md)**
+- **Deployment Guide**: [deploy_dev_env/README.md](deploy_dev_env/README.md)
+- **Changelog**: [deploy_dev_env/CHANGELOG.md](deploy_dev_env/CHANGELOG.md)
+- **Base Image Build**: [build_dev_image/README.md](build_dev_image/README.md)
 
 ---
 
@@ -55,5 +58,5 @@ This project was made possible with the assistance of **Claude Sonnet 4.5** by A
 
 ---
 
-**Current Version:** v0.5.5  
-**Last Updated:** November 2025
+**Current Version:** v0.6.3  
+**Last Updated:** January 22, 2026

@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+---
+
+## [0.6.3] - 2026-01-22
+
+### Added
+
+- **Alpine Test Container**: Permanent Alpine Linux 3.19 container for local musl binary testing
+  - Runs alongside development environment (4 containers total)
+  - Shared Docker volume for binary exchange between dev and Alpine containers
+  - Static IP: 172.20.0.14 on dev-network
+- **test-alpine.ps1 Script**: Automated cross-compilation verification
+  - Creates simple Rust test program
+  - Compiles with musl target inside Ubuntu dev container
+  - Copies binary to shared volume
+  - Executes on Alpine Linux to verify compatibility
+  - Runs automatically during deployment
+  - Can be executed independently anytime
+- **Enhanced Build Verification**: Two-stage musl toolchain validation in Dockerfile
+  - Stage 1: File existence checks (musl-gcc, OpenSSL, Rust target)
+  - Stage 2: Functional compilation test
+  - Catches configuration issues at build time
+
+### Changed
+
+- **deploy-dev.ps1**: Automatically runs Alpine container test after deployment (v0.6.2 → v0.6.3)
+- **cleanup.ps1**: Now handles 4 containers including Alpine test container (v0.6.2 → v0.6.3)
+- **docker-compose-dev.yml**: Added alpine-test service and shared volume configuration
+
+### Technical Details
+
+- Base image: `tsouche/rust_dev_container:v0.6.3`
+- Alpine container: `alpine:3.19`
+- Shared volume: `alpine-test-binaries` (dev: `/alpine-test`, alpine: `/test`)
+- ENV variables unchanged from v0.6.2
+- Complete workflow: Compile in Ubuntu → Copy to volume → Test on Alpine
+- Non-breaking change, fully backward compatible
+
+---
+
+## [0.6.2] - 2026-01-21
+
+### Added
+
+- **Alpine Linux Cross-Compilation Support**: Complete musl toolchain for static binaries
+  - Development in Ubuntu 22.04 LTS
+  - Deployment to Alpine-based staging/production
+  - `x86_64-unknown-linux-musl` target pre-installed
+  - Pre-compiled OpenSSL 3.0.13 for musl at `/usr/local/musl`
+  - Automatic Cargo configuration for musl builds
+- **Fixed OpenSSL/musl Compilation**: Added comprehensive Linux kernel headers
+  - linux-libc-dev and linux-headers-generic packages
+  - 8 include directory paths for musl-gcc
+  - Resolves missing `linux/mman.h`, `asm/mman.h`, `asm/types.h` errors
+
+### Documentation
+
+- Updated README.md with cross-compilation workflows
+- Added musl troubleshooting guide
+- Clarified Ubuntu dev / Alpine production architecture
+- Created comprehensive CHANGELOG.md
+
+### Technical Details
+
+- Base image: `tsouche/rust_dev_container:v0.6.2`
+- OpenSSL 3.0.13 compiled with musl-gcc
+- Static linking enabled via ENV variables
+- Build-time verification of musl toolchain
+
+---
+
 ## [0.5.5] - 2025-11-19
 
 ### Added
@@ -81,15 +151,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## Version History Notes
+## Version History Summary
 
-- **v0.5.5**: Current version with development aliases and port updates
-- **v0.5.4**: Performance optimization through comprehensive caching
-- **v0.5.1**: SSH automation and project management improvements
-- **v0.5.0**: Initial v0.5 release with complete development environment
+| Version | Date | Key Features |
+|---------|------|--------------|
+| 0.6.3 | 2026-01-22 | Alpine test container, automated musl verification |
+| 0.6.2 | 2026-01-21 | Alpine/musl cross-compilation support, OpenSSL for musl |
+| 0.5.5 | 2025-11-19 | Development aliases, port configuration |
+| 0.5.4 | 2025-11-15 | Enhanced caching, performance optimizations |
+| 0.5.1 | 2025-11-11 | SSH automation, project management |
+| 0.5.0 | 2025-11-11 | Initial release with complete environment |
 
 ---
 
-**Maintained by:** Thierry Souche
-**Last Updated:** November 19, 2025</content>
+**Maintained by:** Thierry Souche  
+**Last Updated:** January 22, 2026</content>
 <parameter name="filePath">c:\rustdev\dev_env_builder\CHANGELOG.md

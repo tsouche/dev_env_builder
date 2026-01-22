@@ -1,0 +1,132 @@
+# Docker Compose for Development Environment - v0.6.3
+# Uses pre-built base image tsouche/rust_dev_container:latest
+# Local laptop deployment with SSH and debugging tools
+# Includes Alpine test container for musl binary verification
+
+version: '3.8'
+
+services:
+  # Development Container
+  dev-container:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - GIT_USER_NAME=${GIT_USER_NAME}
+        - GIT_USER_EMAIL=${GIT_USER_EMAIL}
+    image: dev-container:latest
+    
+    container_name: ${CONTAINER_NAME:-dev-container}
+    hostname: ${HOSTNAME:-dev-host}
+    
+    ports:
+      - "${SSH_PORT:-2222}:22"
+      - "${APP_PORT:-5665}:8080"
+    
+    environment:
+      - MONGODB_URI=mongodb://mongo-db:27017/${DB_NAME:-rust_app_db}
+      - MONGODB_HOST=mongo-db
+      - MONGODB_PORT=27017
+      - MONGODB_DATABASE=${DB_NAME:-rust_app_db}
+      - MONGODB_USER=${DB_USER:-app_user}
+      - MONGODB_PASSWORD=${DB_PASSWORD:-app_password}
+      - MONGO_TEST_URI=mongodb://mongo-db:27017
+      - RUST_LOG=${RUST_LOG:-debug}
+    
+    volumes:
+      - ${PROJECT_PATH}:/workspace
+      # Commented out to preserve base image's pre-installed Rust toolchain
+      # - ${VOLUME_CARGO_CACHE}:/home/${USERNAME:-rustdev}/.cargo/registry
+      # - ${VOLUME_CARGO_GIT_CACHE}:/home/${USERNAME:-rustdev}/.cargo/git
+      # - ${VOLUME_RUSTUP_CACHE}:/home/${USERNAME:-rustdev}/.rustup
+      - ${VOLUME_TARGET_CACHE}:/workspace/target
+      # Shared volume with Alpine test container
+      - alpine-test-binaries:/alpine-test
+    
+    networks:
+      - ${NETWORK_NAME:-dev-network}
+    
+    depends_on:
+      - mongo-db
+    
+    tty: true
+    stdin_open: true
+
+  # MongoDB Database
+  mongo-db:
+    image: ${MONGO_IMAGE:-mongo:7.0-jammy}
+    container_name: ${CONTAINER_MONGODB:-dev-mongodb}
+    hostname: mongo-db
+    restart: unless-stopped
+    
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DB_ADMIN_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_ADMIN_PASSWORD:-admin123}
+      MONGO_INITDB_DATABASE: ${DB_NAME:-rust_app_db}
+    
+    volumes:
+      - ${VOLUME_MONGODB_DATA}:/data/db
+      - ${VOLUME_MONGODB_INIT}:/docker-entrypoint-initdb.d:ro
+    
+    networks:
+      dev-network:
+        ipv4_address: 172.20.0.10
+
+  # Mongo Express - Debug Tool (enabled in dev)
+  mongo-express:
+    image: ${MONGO_EXPRESS_IMAGE:-mongo-express:1.0.0-alpha}
+    container_name: ${CONTAINER_MONGO_EXPRESS:-dev-mongo-express}
+    restart: unless-stopped
+    
+    ports:
+      - "${MONGO_EXPRESS_PORT:-8080}:8081"
+    
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${DB_ADMIN_USER:-admin}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${DB_ADMIN_PASSWORD:-admin123}
+      ME_CONFIG_MONGODB_URL: mongodb://${DB_ADMIN_USER:-admin}:${DB_ADMIN_PASSWORD:-admin123}@mongo-db:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: ${MONGO_EXPRESS_USER:-dev}
+      ME_CONFIG_BASICAUTH_PASSWORD: ${MONGO_EXPRESS_PASSWORD:-dev123}
+    
+    depends_on:
+      - mongo-db
+    
+    networks:
+      dev-network:
+        ipv4_address: 172.20.0.12
+
+  # Alpine Test Container - Runtime verification for musl binaries
+  alpine-test:
+    image: ${ALPINE_IMAGE:-alpine:3.19}
+    container_name: ${CONTAINER_ALPINE_TEST:-dev-alpine-test}
+    hostname: alpine-test
+    restart: unless-stopped
+    
+    # Keep container running
+    command: tail -f /dev/null
+    
+    volumes:
+      # Shared volume for testing musl binaries
+      - alpine-test-binaries:/test
+    
+    networks:
+      dev-network:
+        ipv4_address: 172.20.0.14
+
+# All volumes are bind mounts to host directories
+volumes:
+  alpine-test-binaries:
+    name: dev-alpine-test-binaries
+
+networks:
+  dev-network:
+    name: ${NETWORK_NAME:-dev-network}
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/24
+          gateway: 172.20.0.1
