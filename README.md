@@ -58,11 +58,11 @@ This project was made possible with the assistance of **Claude Sonnet 4.5** by A
 
 ---
 
-**Current Version:** v0.6.6  
-**Last Updated:** January 22, 2026
+**Current Version:** v0.6.7  
+**Last Updated:** January 23, 2026
 
-**Key Features (v0.6.6):**
+**Key Features (v0.6.7):**
 
 - ✅ Native glibc compilation for Ubuntu-based deployments
 - ✅ Docker CLI with proper socket permissions
-- ✅ Ubuntu test container for hot-swap deployment workflow validation
+- ✅ Streamlined 3-container architecture (dev, MongoDB, Mongo Express)

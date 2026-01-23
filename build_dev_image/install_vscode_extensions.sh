@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# VS Code Extension Installation Script - v0.5
+# VS Code Extension Installation Script - v0.6.7
 # Run this script after connecting to the dev container via Remote-SSH
 ################################################################################
 

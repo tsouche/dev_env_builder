@@ -1,7 +1,6 @@
-# Docker Compose for Development Environment - v0.6.6
+# Docker Compose for Development Environment - v0.6.7
 # Uses pre-built base image tsouche/rust_dev_container:latest
 # Local laptop deployment with SSH and debugging tools
-# Includes Ubuntu test container for glibc binary verification
 # Docker CLI available inside dev container - binaries copied via docker cp
 
 version: '3.8'
@@ -98,26 +97,6 @@ services:
     networks:
       dev-network:
         ipv4_address: 172.20.0.12
-
-  # Ubuntu Test Container - Hot-swap deployment workflow testing
-  # Simulates staging/prod environment for testing deployment process locally
-  ubuntu-test:
-    build:
-      context: .
-      dockerfile: Dockerfile.ubuntu-test
-    image: ubuntu-test:latest
-    container_name: ${CONTAINER_UBUNTU_TEST:-dev-ubuntu-test}
-    hostname: ubuntu-test
-    restart: unless-stopped
-    
-    # Keep container running
-    command: tail -f /dev/null
-    
-    # No volumes needed - binaries copied via docker cp
-    
-    networks:
-      dev-network:
-        ipv4_address: 172.20.0.14
 
 # All volumes are bind mounts to host directories
 volumes: {}

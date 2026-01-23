@@ -1,5 +1,5 @@
 ################################################################################
-# Complete Cleanup Script for Development Environment - v0.6.6 (PowerShell)
+# Complete Cleanup Script for Development Environment - v0.6.7 (PowerShell)
 # WARNING: This will delete ALL development environment data
 ################################################################################
 

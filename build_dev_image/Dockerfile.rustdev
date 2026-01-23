@@ -1,6 +1,9 @@
 ################################################################################
-# Rust Development Environment - Version 0.6.6
+# Rust Development Environment - Version 0.6.7
 # Shared Dockerfile for all environments (dev, test, prod)
+# 
+# Changes in v0.6.7:
+# - Version bump for deployment script alignment (no image changes)
 # 
 # Changes in v0.6.6:
 # - Removed musl toolchain (Alpine support discontinued)

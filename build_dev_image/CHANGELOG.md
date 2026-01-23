@@ -1,5 +1,22 @@
 # Changelog for BuildDevImage scripts
 
+## Version 0.6.7 (January 23, 2026)
+
+### 📝 Documentation Update
+
+**Version consistency update - no functional changes to the base image**
+
+#### Changes
+
+- Updated version references to 0.6.7 for consistency with deployment scripts
+- No changes to base image functionality or dependencies
+- Base image remains Ubuntu 22.04 with native glibc compilation (v0.6.6)
+- This release focuses on deployment environment changes (removal of ubuntu-test container)
+
+**Note**: The base image `tsouche/rust_dev_container:v0.6.6` remains unchanged and fully compatible. This version bump is for deployment script alignment only.
+
+---
+
 ## Version 0.6.6 (January 22, 2026)
 
 ### 🔄 Major Change - Alpine/musl to Ubuntu/glibc Migration

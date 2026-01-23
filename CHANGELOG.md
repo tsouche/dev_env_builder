@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.7] - 2026-01-23
+
+### Removed
+
+- **Ubuntu test container removed from deployment**
+  - Removed `ubuntu-test` service from docker-compose-dev.yml
+  - Deleted Dockerfile.ubuntu-test
+  - Deleted test-ubuntu.ps1 and test-ubuntu.sh scripts
+  - Removed automatic test execution from deploy-dev.ps1
+  - Simplified deployment to 3 containers: dev-container, MongoDB, Mongo Express
+  - Reason: Streamlined development environment, reduced resource usage
+
+### Changed
+
+- Updated documentation to reflect 3-container architecture
+- Removed ubuntu-test references from README files and cleanup script
+
+---
+
 ## [0.6.6] - 2026-01-22
 
 ### Changed

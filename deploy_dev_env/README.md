@@ -2,9 +2,9 @@
 
 **Complete containerized Rust development environment with MongoDB**
 
-**Current Version:** v0.6.6  
+**Current Version:** v0.6.7  
 **Base Image:** `tsouche/rust_dev_container:v0.6.6`  
-**Last Updated:** January 22, 2026
+**Last Updated:** January 23, 2026
 
 *For version history and changelog, see [CHANGELOG.md](CHANGELOG.md)*
 
@@ -28,7 +28,7 @@
 - **Platform**: Windows with Docker Desktop
 - **Container**: Rust development environment with SSH access
 - **Base Image**: `tsouche/rust_dev_container:v0.6.6`
-- **Services**: Dev container + MongoDB + Mongo Express + Ubuntu Test
+- **Services**: Dev container + MongoDB + Mongo Express
 - **Access**: VS Code Remote SSH to localhost
 
 **Container Features:**
@@ -120,7 +120,7 @@ cd C:\path\to\set_backend\src\env_dev
 4. Configures SSH for VS Code
 5. Creates MongoDB init script
 6. Builds Docker images
-7. Starts all services (dev, MongoDB, Mongo Express, Ubuntu test)
+7. Starts all services (dev, MongoDB, Mongo Express)
 
 **First run prompts:**
 
@@ -139,14 +139,13 @@ docker ps
 # - dev-container (port 2222)
 # - dev-mongodb (port 27017)
 # - dev-mongo-express (port 8080)
-# - dev-ubuntu-test (no external ports)
 ```
 
 ---
 
 ## SSH Configuration
 
-### Automatic Configuration (v0.5.6+)
+### Automatic Configuration (v0.6.7+)
 
 The deployment script automatically:
 
@@ -158,7 +157,7 @@ The deployment script automatically:
 **Generated SSH Config:**
 
 ```ssh-config
-# Rust Development Environment v0.5.6 - Auto-generated
+# Rust Development Environment v0.6.7 - Auto-generated
 Host rust-dev
     HostName localhost
     Port 2222
@@ -246,7 +245,7 @@ cargo build
 
 ## Deployment Scripts
 
-### deploy-dev.ps1 (v0.6.6)
+### deploy-dev.ps1 (v0.6.7)
 
 **Purpose**: Complete environment deployment
 
@@ -263,8 +262,7 @@ cargo build
 - Project directory handling (keep/delete/cancel)
 - Directory structure creation
 - MongoDB initialization
-- Docker Compose service startup (4 containers)
-- **Automatic Ubuntu container test** (validates hot-swap deployment workflow)
+- Docker Compose service startup (3 containers)
 
 **Interactive Prompts:**
 
@@ -277,7 +275,44 @@ Options:
 Enter choice (1/2/3) [2]:
 ```
 
-### cleanup.ps1 (v0.6.6)
+---
+
+## Services & Access
+
+### Service Ports
+
+| Service | Port | Access | Description |
+| ------- | ---- | ------ | ----------- |
+| **SSH** | 2222 | `ssh rust-dev` | VS Code Remote, terminal access |
+| **Backend** | 5645 | `http://localhost:5645` | Application (after build/run) |
+| **MongoDB** | 27017 | `mongodb://localhost:27017` | Database |
+| **Mongo Express** | 8080 | `http://localhost:8080` | Database admin UI |
+
+### Network Configuration
+
+The Docker Compose configuration creates a custom bridge network with static IP assignments:
+
+**Network Details:**
+
+- **Network Name**: `dev-network`
+- **Subnet**: `172.20.0.0/24`
+- **Gateway**: `172.20.0.1`
+
+**Container IP Addresses** (hard-coded in [docker-compose-dev.yml](docker-compose-dev.yml)):
+
+- **MongoDB (mongo-db)**: `172.20.0.10`
+- **Mongo Express**: `172.20.0.12`
+- **Dev Container**: Dynamic IP assignment from the subnet
+
+**⚠️ Important Notes:**
+
+- The MongoDB IP `172.20.0.10` is **hard-coded** to ensure consistent connectivity
+- The Mongo Express IP `172.20.0.12` is **hard-coded** for reliable admin access
+- If you need to change these IPs, modify the `networks` section in `docker-compose-dev.yml`
+- Applications should use the hostname `mongo-db` instead of the IP address for better portability
+- The static IPs ensure predictable network configuration across container restarts
+
+### cleanup.ps1 (v0.6.7)
 
 **Purpose**: Complete environment cleanup
 
@@ -297,7 +332,7 @@ Enter choice (1/2/3) [2]:
 
 **Removes:**
 
-- All containers (dev-container, dev-mongodb, dev-mongo-express, dev-ubuntu-test)
+- All containers (dev-container, dev-mongodb, dev-mongo-express)
 - All Docker images
 - Project directory (`C:\rustdev\projects`)
 - MongoDB data (`C:\rustdev\docker\mongodb`)
@@ -308,57 +343,6 @@ Enter choice (1/2/3) [2]:
 - SSH keys (`~/.ssh/`)
 - SSH config (`~/.ssh/config`)
 - VS Code settings
-
-### test-ubuntu.ps1 (v0.6.6)
-
-**Purpose**: Test hot-swap deployment workflow with Ubuntu container (simulates staging/prod deployment)
-
-**Usage:**
-
-```powershell
-.\test-ubuntu.ps1
-```
-
-**What it does:**
-
-1. Creates a simple Rust test program
-2. Compiles it with native `x86_64-unknown-linux-gnu` target (glibc)
-3. Copies binary directly to Ubuntu test container using `docker cp`
-4. Executes binary on Ubuntu 22.04 container
-5. Verifies output matches expected result
-
-**When to use:**
-
-- Before deploying to NAS staging/production environments
-- To validate hot-swap deployment workflow locally
-- After modifying Dockerfile or runtime dependencies
-- To verify binary compatibility with target Ubuntu environment
-
-**Developer version:**
-
-Developers inside the container can run the same test:
-
-```bash
-# From inside dev container
-test-ubuntu
-```
-
-This bash version performs identical steps with full Docker CLI integration.
-
-**Expected output:**
-
-```
-========================================
-Ubuntu Container Hot-Swap Test: SUCCESS
-========================================
-
-Summary:
-  - Rust program created and compiled with glibc target
-  - Binary successfully executed on Ubuntu 22.04 container
-  - Docker CLI working correctly inside dev container
-
-Hot-swap deployment workflow validated successfully!
-```
 
 ---
 
@@ -372,7 +356,6 @@ Hot-swap deployment workflow validated successfully!
 | **Backend** | 5645 | `http://localhost:5645` | Application (after build/run) |
 | **MongoDB** | 27017 | `mongodb://localhost:27017` | Database |
 | **Mongo Express** | 8080 | `http://localhost:8080` | Database admin UI |
-| **Ubuntu Test** | - | Internal only | Hot-swap deployment testing |
 
 ### Network Configuration
 
@@ -388,7 +371,6 @@ The Docker Compose configuration creates a custom bridge network with static IP 
 
 - **MongoDB (mongo-db)**: `172.20.0.10`
 - **Mongo Express**: `172.20.0.12`
-- **Ubuntu Test**: `172.20.0.14`
 - **Dev Container**: Dynamic IP assignment from the subnet
 
 **⚠️ Important Notes:**
@@ -401,7 +383,7 @@ The Docker Compose configuration creates a custom bridge network with static IP 
 
 ### Environment Variables
 
-Defined in `.env` (v0.5.6):
+Defined in `.env` (v0.6.7):
 
 ```properties
 # Ports
@@ -511,6 +493,8 @@ cargo build
 
 # Run
 cargo run
+```
+
 ### 4. Build for Ubuntu Staging/Production Deployment
 
 **Development Workflow:**
@@ -529,10 +513,6 @@ cargo build --release
 # The resulting binary is dynamically linked with glibc
 ./target/release/your_app
 
-# Test on local Ubuntu test container (hot-swap workflow)
-docker cp ./target/release/your_app dev-ubuntu-test:/app/your_app
-docker exec dev-ubuntu-test /app/your_app --version
-
 # Deploy to Ubuntu-based staging/production container (hot-swap)
 # This mirrors the exact deployment process used on the NAS
 docker cp ./target/release/your_app staging-container:/app/
@@ -550,74 +530,9 @@ ssh admin@nas "docker restart staging-backend"
 - **Staging/Prod**: Ubuntu 22.04 containers run the glibc binaries natively
 - **Hot-swap deployment**: Copy binary to running container, test, restart
 
-**Note**: Dev, test, staging, and prod all use Ubuntu 22.04 with glibc for maximum compatibility.
+**Note**: Dev, staging, and prod all use Ubuntu 22.04 with glibc for maximum compatibility.
 
-### 5. Test Hot-Swap Deployment on Ubuntu Container (v0.6.6+)
-
-The dev environment includes a permanent Ubuntu test container for validating the hot-swap deployment workflow locally before deploying to the NAS.
-
-**Quick Test (from inside dev container):**
-
-```bash
-# Run the built-in test script
-test-ubuntu
-
-# This will:
-# 1. Create a simple Rust test program
-# 2. Compile it with native glibc target
-# 3. Copy binary to Ubuntu test container using docker cp
-# 4. Execute and verify on Ubuntu automatically
-```
-
-**Manual Testing (from inside dev container):**
-
-```bash
-# Build your release binary
-cargo build --release
-
-# Copy directly to Ubuntu test container using docker cp (hot-swap)
-docker cp ./target/release/your_app dev-ubuntu-test:/app/your_app
-
-# Execute in Ubuntu test container
-docker exec dev-ubuntu-test /app/your_app --version
-
-# Test restart workflow
-docker restart dev-ubuntu-test
-docker exec dev-ubuntu-test /app/your_app --version
-```
-
-**From Windows host:**
-
-```powershell
-# Run automated test
-.\test-ubuntu.ps1
-
-# Or manually test your binary
-docker cp your_app dev-ubuntu-test:/app/your_app
-docker exec dev-ubuntu-test /app/your_app
-
-# Interactive shell in Ubuntu test container
-docker exec -it dev-ubuntu-test /bin/bash
-```
-
-**Troubleshooting runtime issues:**
-
-```bash
-# Check binaries in Ubuntu test container
-docker exec dev-ubuntu-test ls -lh /app/
-
-# Check Ubuntu version
-docker exec dev-ubuntu-test cat /etc/os-release
-
-# Check binary type and dependencies
-docker exec dev-ubuntu-test file /app/your_app
-docker exec dev-ubuntu-test ldd /app/your_app  # Should show glibc dependencies
-
-# Check library versions
-docker exec dev-ubuntu-test dpkg -l | grep libssl
-```
-
-### 6. Development Service Aliases
+### 5. Development Service Aliases
 
 **Convenient aliases and functions** are available for quick API testing:
 
@@ -630,7 +545,9 @@ dev-v
 
 # Shutdown service
 dev-s
-### 7. Development Loop
+```
+
+### 6. Development Loop
 
 **Inside container:**
 
@@ -966,14 +883,14 @@ rm -rf ~/.vscode-server
 
 ```
 C:\path\to\set_backend\src\env_dev\
-├── .env                       # Environment configuration (v0.5.6)
+├── .env                       # Environment configuration (v0.6.7)
 ├── Dockerfile                 # Dev container definition
-├── docker-compose-dev.yml     # Services orchestration (v0.5.6)
-├── deploy-dev.ps1            # Deployment script (v0.5.6)
-├── cleanup.ps1               # Cleanup script (v0.5.6)
-├── 01-init-db.js             # MongoDB initialization (auto-generated)
+├── docker-compose-dev.yml     # Services orchestration (v0.6.7)
+├── deploy-dev.ps1             # Deployment script (v0.6.7)
+├── cleanup.ps1                # Cleanup script (v0.6.7)
+├── 01-init-db.js              # MongoDB initialization (auto-generated)
 ├── authorized_keys            # SSH public key (auto-generated)
-└── README.md                 # This guide
+└── README.md                  # This guide
 ```
 
 ### Windows Host Directories
@@ -981,31 +898,31 @@ C:\path\to\set_backend\src\env_dev\
 ```
 C:\rustdev\
 ├── projects\                  # Project workspace
-│   └── set_backend\          # Cloned repository (inside container)
+│   └── set_backend\           # Cloned repository (inside container)
 │
 └── docker\
     ├── mongodb\
-    │   ├── data\             # MongoDB data (persistent)
-    │   └── init\             # Init scripts
-    ├── cargo_cache\          # Cargo registry cache
-    └── target_cache\         # Rust build artifacts cache
+    │   ├── data\              # MongoDB data (persistent)
+    │   └── init\              # Init scripts
+    ├── cargo_cache\           # Cargo registry cache
+    └── target_cache\          # Rust build artifacts cache
 ```
 
 ### Container Structure
 
 ```
 /workspace/                    # Mounted from C:\rustdev\projects
-├── set_backend/              # Your project (clone here)
+├── set_backend/               # Your project (clone here)
 │   ├── src/
 │   ├── Cargo.toml
 │   └── ...
 
 /home/rustdev/
 ├── .cargo/
-│   └── registry/             # Mounted from C:\rustdev\docker\cargo_cache
-├── .vscode-server/           # VS Code server
+│   └── registry/              # Mounted from C:\rustdev\docker\cargo_cache
+├── .vscode-server/            # VS Code server
 ├── .ssh/
-│   └── authorized_keys       # Your public key
+│   └── authorized_keys        # Your public key
 └── .bashrc
 ```
 
