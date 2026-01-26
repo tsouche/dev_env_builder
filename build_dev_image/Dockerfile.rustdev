@@ -33,7 +33,11 @@ RUN apt-get update && apt-get install -y \
     openssh-server \
     sudo \
     gnupg \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# Ensure Let's Encrypt root is present and up to date
+RUN update-ca-certificates
 
 ################################################################################
 # Install MongoDB Shell (mongosh)
