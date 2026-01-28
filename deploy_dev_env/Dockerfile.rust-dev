@@ -1,6 +1,6 @@
 ################################################################################
 # SET Backend Development Environment
-# Base: tsouche/rust_dev_container:latest (v0.6.6+)
+# Base: tsouche/base_rust_dev:latest (v0.6.9)
 # 
 # The base image already provides:
 # - Ubuntu 22.04 LTS
@@ -16,7 +16,7 @@
 # - Git aliases (st, co, br, ci, lg)
 # - Development service functions (dev-h, dev-v, dev-s, dev-c, dev-l)
 ################################################################################
-FROM tsouche/rust_dev_container:latest
+FROM tsouche/base_rust_dev:latest
 
 # Git configuration arguments from .env
 ARG GIT_USER_NAME
@@ -35,6 +35,18 @@ RUN if [ -n "${GIT_USER_NAME}" ] && [ -n "${GIT_USER_EMAIL}" ]; then \
         git config --global user.name "${GIT_USER_NAME}" && \
         git config --global user.email "${GIT_USER_EMAIL}"; \
     fi
+
+################################################################################
+# AI Agentic Tools - Claude Code
+################################################################################
+USER root
+# Installation du CLI Claude Code (toujours latest au build)
+RUN npm install -g @anthropic-ai/claude-code@latest
+
+# S'assurer que les permissions du home sont correctes pour la config .claude
+RUN chown -R 1026:110 /home/rustdev
+
+USER rustdev
 
 # Note: Development aliases, shell shortcuts, and git aliases are now
 # included in the base image (tsouche/rust_dev_container:latest)

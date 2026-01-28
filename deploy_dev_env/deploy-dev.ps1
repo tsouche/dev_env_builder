@@ -116,6 +116,10 @@ if (Test-Path $EnvFile) {
     }
 }
 
+if (-not $env:ANTHROPIC_API_KEY -or $env:ANTHROPIC_API_KEY -eq "sk-ant-xxx...") {
+    Write-Warning-Custom "ANTHROPIC_API_KEY is not set. Claude Code will not work."
+}
+
 $ProjectDir = if ($env:PROJECT_DIR) { $env:PROJECT_DIR } else { "rust_project" }
 $DbName = if ($env:DB_NAME) { $env:DB_NAME } else { "rust_app_db" }
 $DbUser = if ($env:DB_USER) { $env:DB_USER } else { "app_user" }
@@ -453,6 +457,10 @@ Write-Host "     git clone $($env:GIT_REPO)"
 Write-Host "  6. Open terminal (Ctrl+`) - Extensions will auto-install!"
 Write-Host "  7. Open the cloned project: /workspace/$ProjectDir"
 Write-Host "  8. Run: cargo build"
+Write-Host "  9. Use Claude Code (CLI):" -ForegroundColor Blue
+Write-Host "     Type 'claude' in the terminal to start the AI agent."
+Write-Host "  10. Use Claude Chat:" -ForegroundColor Blue
+Write-Host "      Open the Claude extension icon on the left sidebar."
 Write-Host ""
 Write-Host "IMPORTANT:" -ForegroundColor Yellow
 Write-Host "  Clone the repository FROM WITHIN the container (via VS Code terminal)" -ForegroundColor Yellow

@@ -9,7 +9,8 @@
         "tamasfe.even-better-toml",
         "github.copilot",
         "github.copilot-chat",
-        "davidanson.vscode-markdownlint"
+        "davidanson.vscode-markdownlint",
+        "anthropic.claude-code"
       ],
       "settings": {
         "rust-analyzer.checkOnSave.command": "clippy",

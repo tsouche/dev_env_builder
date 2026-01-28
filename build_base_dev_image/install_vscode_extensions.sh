@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# VS Code Extension Installation Script - v0.6.7
+# VS Code Extension Installation Script - v0.6.9
 # Run this script after connecting to the dev container via Remote-SSH
 ################################################################################
 
@@ -18,6 +18,7 @@ EXTENSIONS=(
     "github.copilot"
     "github.copilot-chat"
     "davidanson.vscode-markdownlint"
+    "anthropic.claude-code"
 )
 
 # Check if code command is available

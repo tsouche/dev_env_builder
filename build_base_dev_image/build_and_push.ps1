@@ -1,5 +1,5 @@
 ################################################################################
-# Build and Push Rust Dev Container Image (Windows) - v0.6.8
+# Build and Push Rust Dev Container Image (Windows) - v0.6.9
 # Usage: .\build_and_push.ps1 [VERSION]
 ################################################################################
 
@@ -11,8 +11,8 @@ $ErrorActionPreference = "Stop"
 
 # Configuration
 $DOCKERHUB_USER = "tsouche"
-$IMAGE_NAME = "rust_dev_container"
-$DOCKERFILE = "Dockerfile.rustdev"
+$IMAGE_NAME = "base_rust_dev"
+$DOCKERFILE = "Dockerfile.base_rust_dev"
 
 # Required support files
 $REQUIRED_FILES = @(
@@ -76,13 +76,12 @@ Write-Host ""
 
 # Check Docker is running
 Write-Host "[2/5] Checking Docker..." -ForegroundColor Yellow
-try {
-    docker info | Out-Null
-    Write-Host "OK Docker is running" -ForegroundColor Green
-} catch {
-    Write-Host "ERROR: Docker is not running" -ForegroundColor Red
+$dockerCheck = docker info 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Docker engine is not responding. Is Rancher Desktop started?" -ForegroundColor Red
     exit 1
 }
+Write-Host "Docker is running" -ForegroundColor Green
 Write-Host ""
 
 # Build image
