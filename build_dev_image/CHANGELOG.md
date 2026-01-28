@@ -1,5 +1,22 @@
 # Changelog for BuildDevImage scripts
 
+
+## Version 0.6.8 (January 27, 2026)
+
+### 🛡️ Security & SSL Improvements
+
+**Added ca-certificates and updated certificate store for improved SSL support**
+
+#### Changes
+
+- Added `ca-certificates` package to the base image
+- Ran `update-ca-certificates` to ensure up-to-date trusted roots
+- Updated version references to 0.6.8 for consistency
+- No other functional changes
+
+**Note**: The base image `tsouche/rust_dev_container:v0.6.8` now includes ca-certificates and updated certs for improved SSL support.
+
+---
 ## Version 0.6.7 (January 23, 2026)
 
 ### 📝 Documentation Update

@@ -11,7 +11,7 @@ Build and push with a specific version:
 Example:
 
 ```powershell
-.\build_and_push.ps1 0.6.7
+.\build_and_push.ps1 0.6.8
 ```
 
 Or build with 'latest' tag only (default):
@@ -36,7 +36,7 @@ Default: `latest` tag only (if no version specified)
 
 1. Validates all required files exist locally
 2. **Checks Docker is running**
-3. Builds image locally: `tsouche/rust_dev_container:vX.Y.Z`
+3. Builds image locally: `tsouche/rust_dev_container:vX.Y.Z` (now includes ca-certificates and updated certs)
 4. Tags with: `vX.Y.Z`, `vX.Y`, `latest`
 5. **Checks DockerHub login status (prompts for login if needed)**
 6. Pushes all tags to DockerHub

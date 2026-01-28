@@ -2,9 +2,9 @@
 
 **Complete containerized Rust development environment with MongoDB**
 
-**Current Version:** v0.6.7  
-**Base Image:** `tsouche/rust_dev_container:v0.6.6`  
-**Last Updated:** January 23, 2026
+**Current Version:** v0.6.8  
+**Base Image:** `tsouche/rust_dev_container:v0.6.8`  
+**Last Updated:** January 27, 2026
 
 *For version history and changelog, see [CHANGELOG.md](CHANGELOG.md)*
 
@@ -27,7 +27,7 @@
 
 - **Platform**: Windows with Docker Desktop
 - **Container**: Rust development environment with SSH access
-- **Base Image**: `tsouche/rust_dev_container:v0.6.6`
+- **Base Image**: `tsouche/rust_dev_container:v0.6.8` (now includes ca-certificates and updated certs)
 - **Services**: Dev container + MongoDB + Mongo Express
 - **Access**: VS Code Remote SSH to localhost
 

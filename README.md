@@ -2,6 +2,8 @@
 
 **Containerized Rust development environment with MongoDB**
 
+**Note:** As of v0.6.8, the base image includes ca-certificates and updated certificate store for improved SSL support.
+
 ---
 
 ## 🚀 Quick Start
