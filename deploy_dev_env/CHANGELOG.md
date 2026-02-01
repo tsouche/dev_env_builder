@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.10] - 2026-02-01
+
+### Fixed
+
+- **SSH Connection Test Timeout**: Added job-based timeout mechanism to prevent deployment script from hanging
+  - SSH connection tests now use PowerShell jobs with hard 10-second timeout per attempt
+  - Prevents indefinite hanging when SSH service is slow to start or unavailable
+  - Script continues with warning if SSH test fails rather than blocking indefinitely
+  - Added missing `Write-Info-Custom` function that was causing script errors
+
+### Changed
+
+- Improved `Test-SSHConnection` function reliability with proper job cleanup
+- Better user feedback during SSH connection testing with timeout messages
+
+---
+
 ## [0.6.9] - 2026-02-01
 
 ### Changed

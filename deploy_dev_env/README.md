@@ -2,7 +2,7 @@
 
 **Complete containerized Rust development environment with MongoDB**
 
-**Current Version:** v0.6.9
+**Current Version:** v0.6.10
 **Base Image:** `tsouche/base_rust_dev:v0.6.9`  
 **Last Updated:** February 1, 2026
 
