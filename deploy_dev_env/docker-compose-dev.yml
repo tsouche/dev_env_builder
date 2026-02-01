@@ -24,7 +24,7 @@ services:
       - "${APP_PORT:-5665}:8080"
     
     environment:
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}  # Commented out to use claude.ai subscription
       - MONGODB_URI=mongodb://mongo-db:27017/${DB_NAME:-rust_app_db}
       - MONGODB_HOST=mongo-db
       - MONGODB_PORT=27017

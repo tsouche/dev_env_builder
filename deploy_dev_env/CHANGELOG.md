@@ -6,15 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [0.6.9] - 2026-01-28
+## [0.6.9] - 2026-02-01
 
 ### Changed
 
-- blablabla
-- blablabla
+- **Claude Code Authentication**: Modified to use claude.ai subscription by default
+  - Commented out `ANTHROPIC_API_KEY` in `.env` file to avoid automatic API usage
+  - Commented out `ANTHROPIC_API_KEY` environment variable in `docker-compose-dev.yml`
+  - Updated `deploy-dev.ps1` to show info message about claude.ai subscription authentication
+  - Users should run `claude login` inside container to authenticate with Pro/Max subscription
+  - This allows consuming claude.ai subscription usage before API credits
+  - See: https://support.claude.com/en/articles/11145838-using-claude-code-with-your-pro-or-max-plan
+
+### Documentation
+
+- Enhanced `.env` file comments to clearly explain two Claude Code authentication options
+- Updated README with authentication instructions
+- Added version history entry
 
 ---
-
 ## [0.6.7] - 2026-01-23
 
 ### Removed

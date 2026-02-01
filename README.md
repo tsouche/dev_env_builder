@@ -60,7 +60,7 @@ This project was made possible with the assistance of **Claude Sonnet 4.5** by A
 
 ---
 
-**Current Version:** v0.6.7  
+**Current Version:** v0.6.9  
 **Last Updated:** January 23, 2026
 
 **Key Features (v0.6.7):**

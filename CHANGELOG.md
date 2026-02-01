@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.9] - 2026-02-01
+
+### Changed - Deploy Environment
+
+- **Claude Code Authentication Strategy**: Modified to prioritize claude.ai subscription usage
+  - Commented out `ANTHROPIC_API_KEY` to prevent automatic API billing
+  - Updated deployment script to guide users to authenticate with `claude login`
+  - Enhanced documentation explaining both authentication methods
+  - Reference: https://support.claude.com/en/articles/11145838
+
+---
+
 ## [0.6.7] - 2026-01-23
 
 ### Removed

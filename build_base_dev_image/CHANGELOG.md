@@ -1,6 +1,20 @@
 # Changelog for BuildDevImage scripts
 
 
+## Version 0.6.9 (February 1, 2026)
+
+### 📝 Version Update
+
+**Version consistency update - no functional changes to the base image**
+
+#### Changes
+
+- Updated version references to 0.6.9 for consistency with deployment environment
+- Deployment environment updated to use claude.ai subscription by default for Claude Code
+- No changes to base image itself
+
+---
+
 ## Version 0.6.8 (January 27, 2026)
 
 ### 🛡️ Security & SSL Improvements

@@ -1,9 +1,10 @@
 ################################################################################
-# Rust Development Environment - Version 0.6.8
+# Rust Development Environment - Version 0.6.9
 # Shared Dockerfile for all environments (dev, test, prod)
 # 
 # Changes in v0.6.9:
-# - add Node.js (required for installing Claude Code CLI)
+# - No functional changes to base image
+# - Version bump for consistency with deployment environment
 # 
 ################################################################################
 FROM ubuntu:22.04

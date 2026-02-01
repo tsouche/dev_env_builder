@@ -117,7 +117,8 @@ if (Test-Path $EnvFile) {
 }
 
 if (-not $env:ANTHROPIC_API_KEY -or $env:ANTHROPIC_API_KEY -eq "sk-ant-xxx...") {
-    Write-Warning-Custom "ANTHROPIC_API_KEY is not set. Claude Code will not work."
+    Write-Info-Custom "ANTHROPIC_API_KEY not set. Claude Code will use claude.ai subscription."
+    Write-Info-Custom "Run 'claude login' inside the container to authenticate with your Pro/Max account."
 }
 
 $ProjectDir = if ($env:PROJECT_DIR) { $env:PROJECT_DIR } else { "rust_project" }
