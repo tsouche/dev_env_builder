@@ -1,6 +1,6 @@
 ################################################################################
 # SET Backend Development Environment
-# Base: tsouche/base_rust_dev:latest (v0.6.9)
+# Base: tsouche/base_rust_dev:latest (v0.6.10)
 # 
 # The base image already provides:
 # - Ubuntu 22.04 LTS
@@ -8,6 +8,7 @@
 # - Build tools (gcc, cmake, pkg-config, libssl-dev)
 # - MongoDB Shell (mongosh)
 # - GitHub CLI (gh)
+# - Bun runtime (for QMD support)
 # - SSH server configured with host keys
 # - VS Code extensions auto-install
 # - User rustdev (UID 1026, GID 110)
@@ -51,6 +52,80 @@ USER rustdev
 # Note: Development aliases, shell shortcuts, and git aliases are now
 # included in the base image (tsouche/rust_dev_container:latest)
 # No need to redefine them here.
+
+################################################################################
+# QMD - Query Markup Documents (AI-optimized code indexing)
+################################################################################
+USER root
+
+# Install QMD globally (requires root for global installation)
+RUN bun install -g github:tobi/qmd
+
+# Verify QMD installation
+RUN qmd --version || echo "QMD installed, waiting for first use to download models"
+
+# Create QMD cache directory with proper permissions
+USER rustdev
+RUN mkdir -p /home/rustdev/.cache/qmd
+
+USER root
+RUN chown -R 1026:110 /home/rustdev/.cache
+
+# Add QMD to PATH
+USER rustdev
+RUN echo 'export PATH="$HOME/.bun/bin:/usr/local/bin:$PATH"' >> /home/rustdev/.bashrc
+
+# Configure Claude Code MCP integration automatically
+USER root
+RUN mkdir -p /home/rustdev/.claude && \
+    echo '{"mcpServers":{"qmd":{"command":"qmd","args":["mcp"]}}}' > /home/rustdev/.claude/settings.json && \
+    chown -R 1026:110 /home/rustdev/.claude
+
+# Note: GGUF models (~2GB) will auto-download on first qmd embed
+# Models stored in: ~/.cache/qmd/models/
+# - embeddinggemma-300M-Q8_0 (~300MB)
+# - qwen3-reranker-0.6b-q8_0 (~640MB)  
+# - qmd-query-expansion-1.7B-q4_k_m (~1.1GB)
+
+# Copy QMD initialization script
+COPY init_qmd.sh /home/rustdev/init_qmd.sh
+RUN chmod +x /home/rustdev/init_qmd.sh && \
+    chown 1026:110 /home/rustdev/init_qmd.sh
+
+# Copy global CLAUDE.md template to .claude directory
+COPY CLAUDE.md.template /home/rustdev/.claude/CLAUDE.md
+RUN chown 1026:110 /home/rustdev/.claude/CLAUDE.md
+
+# Add QMD shortcuts to bashrc
+USER rustdev
+RUN echo '' >> /home/rustdev/.bashrc && \
+    echo '# QMD Shortcuts' >> /home/rustdev/.bashrc && \
+    echo 'alias qmd-update="cd /workspace && qmd update"' >> /home/rustdev/.bashrc && \
+    echo 'alias qmd-refresh="cd /workspace && qmd update && qmd embed"' >> /home/rustdev/.bashrc && \
+    echo 'alias qmd-status="qmd status"' >> /home/rustdev/.bashrc && \
+    echo 'alias qmd-search="qmd query"' >> /home/rustdev/.bashrc && \
+    echo '' >> /home/rustdev/.bashrc && \
+    echo '# QMD Auto-Initialize (runs once, then updates if needed)' >> /home/rustdev/.bashrc && \
+    echo 'function qmd-auto-init() {' >> /home/rustdev/.bashrc && \
+    echo '    # Only run for interactive shells' >> /home/rustdev/.bashrc && \
+    echo '    if [ -z "$PS1" ]; then return; fi' >> /home/rustdev/.bashrc && \
+    echo '    ' >> /home/rustdev/.bashrc && \
+    echo '    # Check if we need to initialize' >> /home/rustdev/.bashrc && \
+    echo '    if [ ! -f ~/.cache/qmd/index.sqlite ]; then' >> /home/rustdev/.bashrc && \
+    echo '        echo "🔧 QMD not initialized. Running auto-init..."' >> /home/rustdev/.bashrc && \
+    echo '        ~/init_qmd.sh' >> /home/rustdev/.bashrc && \
+    echo '        return' >> /home/rustdev/.bashrc && \
+    echo '    fi' >> /home/rustdev/.bashrc && \
+    echo '    ' >> /home/rustdev/.bashrc && \
+    echo '    # Check index freshness (warn if >24h old)' >> /home/rustdev/.bashrc && \
+    echo '    LAST_UPDATE=$(stat -c %Y ~/.cache/qmd/index.sqlite 2>/dev/null || echo 0)' >> /home/rustdev/.bashrc && \
+    echo '    NOW=$(date +%s)' >> /home/rustdev/.bashrc && \
+    echo '    DIFF=$((NOW - LAST_UPDATE))' >> /home/rustdev/.bashrc && \
+    echo '    if [ $DIFF -gt 86400 ]; then' >> /home/rustdev/.bashrc && \
+    echo '        echo "⚠️  QMD index is >24h old. Consider running: qmd-update"' >> /home/rustdev/.bashrc && \
+    echo '    fi' >> /home/rustdev/.bashrc && \
+    echo '}' >> /home/rustdev/.bashrc && \
+    echo 'qmd-auto-init' >> /home/rustdev/.bashrc
 
 USER root
 WORKDIR /workspace

@@ -1,0 +1,44 @@
+{
+    "name": "Rust Development Environment",
+    "workspaceFolder": "/workspace",
+    
+    // Run QMD initialization automatically when VS Code connects
+    // The script is idempotent, so safe to run multiple times
+    "postStartCommand": "bash ~/init_qmd.sh",
+    
+    // VS Code settings for the container
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "bash",
+                "terminal.integrated.profiles.linux": {
+                    "bash": {
+                        "path": "/bin/bash"
+                    }
+                }
+            },
+            "extensions": [
+                // Extensions will be auto-installed via the install script
+                // This list is for VS Code Remote-SSH users who want
+                // VS Code's native extension management
+                "rust-lang.rust-analyzer",
+                "vadimcn.vscode-lldb",
+                "tamasfe.even-better-toml",
+                "serayuzgur.crates"
+            ]
+        }
+    },
+    
+    // Environment variables
+    "remoteEnv": {
+        "RUSTUP_HOME": "/usr/local/rustup",
+        "CARGO_HOME": "/usr/local/cargo"
+    },
+    
+    // Forward ports automatically
+    "forwardPorts": [3000],
+    
+    // Uncomment to connect as root instead
+    // "remoteUser": "root"
+    "remoteUser": "rustdev"
+}

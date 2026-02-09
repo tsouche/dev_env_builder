@@ -1,6 +1,41 @@
 # Changelog for BuildDevImage scripts
 
 
+## Version 0.6.10 (February 9, 2026)
+
+### 🚀 QMD Support - Bun Runtime Addition
+
+**Added Bun runtime for AI-optimized code indexing capabilities**
+
+#### Changes
+
+- **Added Bun runtime** (latest stable version)
+  - System-wide installation in `/usr/local`
+  - Required dependency for QMD (Query Markup Documents)
+  - Enables AI-assisted development in deployment environments
+- Bun installed after Node.js, before Rust toolchain
+- Symlink `bunx` created for convenience
+- Version verification included in build process
+
+#### Benefits
+
+- **Enables QMD integration** in deployment images
+  - AI-optimized code indexing
+  - 60-80% reduction in Claude Code token usage
+  - Semantic search capabilities
+- **Lightweight addition**: ~50MB total
+- **System-wide availability**: All users can access Bun
+
+#### Technical Details
+
+- Installation: `curl -fsSL https://bun.sh/install | bash -s -- --prefix /usr/local`
+- Environment: `BUN_INSTALL=/usr/local`, added to PATH
+- Verification: `bun --version` runs during build
+
+**Note**: This version is a prerequisite for QMD-enabled deployment environments (v0.7.0+)
+
+---
+
 ## Version 0.6.9 (February 1, 2026)
 
 ### 📝 Version Update

@@ -40,6 +40,8 @@ services:
       - ${VOLUME_TARGET_CACHE}:/workspace/target
       # Docker socket for container management from inside dev container
       - /var/run/docker.sock:/var/run/docker.sock
+      # QMD cache volume (for GGUF models and index)
+      - ${VOLUME_QMD_CACHE:-./volumes/qmd_cache}:/home/rustdev/.cache/qmd
     
     networks:
       - ${NETWORK_NAME:-dev-network}

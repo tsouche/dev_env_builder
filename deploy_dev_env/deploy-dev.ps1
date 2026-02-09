@@ -449,6 +449,31 @@ if (-not $sshTestPassed) {
 }
 
 ################################################################################
+# Initialize QMD (Automated)
+################################################################################
+
+Write-Header "Initializing QMD Search Engine"
+
+Write-Host "Running QMD auto-initialization..." -ForegroundColor Yellow
+Write-Host "  This runs the idempotent init_qmd.sh script automatically." -ForegroundColor Gray
+Write-Host "  - First run: Downloads models (~2GB) and creates index" -ForegroundColor Gray
+Write-Host "  - Subsequent runs: Updates existing index if workspace changed" -ForegroundColor Gray
+Write-Host ""
+
+try {
+    # Run init_qmd.sh inside the container as rustdev user
+    docker exec -u rustdev $env:CONTAINER_NAME bash -c "cd /workspace && ~/init_qmd.sh"
+    Write-Success "QMD initialization completed"
+    Write-Host ""
+    Write-Host "✅ QMD is ready! Claude Code will automatically use it for searches." -ForegroundColor Green
+} catch {
+    Write-Warning-Custom "QMD initialization encountered an issue: $_"
+    Write-Host "   QMD will auto-initialize on first shell login instead." -ForegroundColor Yellow
+}
+
+Write-Host ""
+
+################################################################################
 # Display Status
 ################################################################################
 

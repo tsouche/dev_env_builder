@@ -11,7 +11,7 @@ Build and push with a specific version:
 Example:
 
 ```powershell
-.\build_and_push.ps1 0.6.9
+.\build_and_push.ps1 0.6.10
 ```
 
 Or build with 'latest' tag only (default):
@@ -36,7 +36,7 @@ Default: `latest` tag only (if no version specified)
 
 1. Validates all required files exist locally
 2. **Checks Docker is running**
-3. Builds image locally: `tsouche/rust_dev_container:vX.Y.Z` (now includes ca-certificates and updated certs)
+3. Builds image locally: `tsouche/rust_dev_container:vX.Y.Z` (now includes Bun runtime for QMD support)
 4. Tags with: `vX.Y.Z`, `vX.Y`, `latest`
 5. **Checks DockerHub login status (prompts for login if needed)**
 6. Pushes all tags to DockerHub
@@ -53,6 +53,7 @@ Default: `latest` tag only (if no version specified)
   - MongoDB tools (mongosh)
   - **GitHub CLI (gh)** - v0.6.0+
   - **Docker CLI** - v0.6.5+ for container management
+  - **Bun runtime** - v0.6.10+ for QMD (AI-optimized code indexing)
   - Common dev tools (curl, wget, git, build-essential, libssl-dev, pkg-config, etc.)
   - **Native glibc builds** - v0.6.6+:
     - Default `x86_64-unknown-linux-gnu` target (native)
@@ -86,4 +87,4 @@ System OpenSSL (libssl-dev) is available via pkg-config, so dependencies like `r
 **OpenSSL link errors**: The image includes system libssl-dev via pkg-config
 
 ---
-**Last Updated**: 2026-01-22
+**Last Updated**: 2026-02-09

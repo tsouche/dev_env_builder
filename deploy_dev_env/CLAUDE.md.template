@@ -1,0 +1,49 @@
+# Global Claude Code Configuration
+
+## Rule: Always use QMD before reading files
+
+Before reading files or exploring directories, **always use QMD** to search for information in local projects.
+
+### Available QMD Tools (via MCP):
+
+- `qmd_search "query"` — Fast BM25 keyword search (best for exact matches, function names, error messages)
+- `qmd_query "query"` — Hybrid search with query expansion and LLM reranking (best for complex questions)
+- `qmd_vsearch "query"` — Semantic vector search (best for conceptual similarity)
+- `qmd_get <file>` — Retrieve a specific document by path or docid (supports fuzzy matching)
+- `qmd_multi_get <pattern>` — Get multiple files matching a glob pattern
+- `qmd_status` — Check index health and available collections
+
+### Search Strategy:
+
+1. **For specific code/symbols/functions:** Use `qmd_search` with exact terms
+2. **For concepts/explanations/architecture:** Use `qmd_query` for best results
+3. **For similar functionality/patterns:** Use `qmd_vsearch` for semantic similarity
+4. **For specific files:** Use `qmd_get` with path (supports fuzzy matching with suggestions)
+5. **Only use Read/Grep/Glob tools** if QMD doesn't return sufficient results
+
+### When to Skip QMD:
+
+- File modifications (use Read before Edit)
+- Line-specific debugging (QMD returns chunks, not line numbers)
+- Binary files or generated code
+- Very small codebases (<10 files)
+
+### Collections:
+
+- **workspace** — Current project in /workspace
+- File types indexed: `*.rs`, `*.md`, `*.toml`, `*.json`, `*.yaml`, `*.yml`, `*.sh`
+
+### Index Maintenance:
+
+Remind users to run `qmd-update` after significant code changes:
+- After merging branches
+- After pulling updates
+- After adding new files
+- After major refactoring
+
+## Output Preferences:
+
+When using QMD results:
+- Cite the source file and context
+- Mention the QMD score if relevant
+- If results seem outdated, suggest running `qmd-update`

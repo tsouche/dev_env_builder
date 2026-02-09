@@ -1,10 +1,11 @@
 ################################################################################
-# Rust Development Environment - Version 0.6.9
+# Rust Development Environment - Version 0.6.10
 # Shared Dockerfile for all environments (dev, test, prod)
 # 
-# Changes in v0.6.9:
-# - No functional changes to base image
-# - Version bump for consistency with deployment environment
+# Changes in v0.6.10:
+# - Added Bun runtime (required for QMD - Query Markup Documents)
+# - Enables AI-optimized code indexing in deployment environments
+# - System-wide installation in /usr/local for all users
 # 
 ################################################################################
 FROM ubuntu:22.04
@@ -42,6 +43,19 @@ RUN update-ca-certificates
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g npm@latest
+
+################################################################################
+# Install Bun Runtime (Required for QMD)
+################################################################################
+USER root
+# Set installation location before running install script
+ENV BUN_INSTALL="/usr/local"
+RUN curl -fsSL https://bun.sh/install | bash
+
+# Verify Bun installation (bunx is automatically created by installer)
+RUN bun --version
+
+ENV PATH="${BUN_INSTALL}/bin:${PATH}"
 
 ################################################################################
 # Install MongoDB Shell (mongosh)

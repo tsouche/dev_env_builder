@@ -3,8 +3,8 @@
 **Complete containerized Rust development environment with MongoDB**
 
 **Current Version:** v0.6.10
-**Base Image:** `tsouche/base_rust_dev:v0.6.9`  
-**Last Updated:** February 1, 2026
+**Base Image:** `tsouche/base_rust_dev:v0.6.10`  
+**Last Updated:** February 9, 2026
 
 *For version history and changelog, see [CHANGELOG.md](CHANGELOG.md)*
 
@@ -266,7 +266,7 @@ cargo build
 
 **Interactive Prompts:**
 
-```
+```doc
 Existing project directory found: C:\rustdev\projects\set_backend
 Options:
   1. Keep existing directory
@@ -351,7 +351,7 @@ The Docker Compose configuration creates a custom bridge network with static IP 
 ### Service Ports
 
 | Service | Port | Access | Description |
-|---------|------|--------|-------------|
+| ------- | ---- | ------ | ----------- |
 | **SSH** | 2222 | `ssh rust-dev` | VS Code Remote, terminal access |
 | **Backend** | 5645 | `http://localhost:5645` | Application (after build/run) |
 | **MongoDB** | 27017 | `mongodb://localhost:27017` | Database |
@@ -435,19 +435,19 @@ GROUPNAME=rustdevteam
 
 **From within container (recommended):**
 
-```
+```sh
 mongodb://app_user:DevPassword123@mongo-db:27017/rust_app_db
 ```
 
 **Using static IP (from within container):**
 
-```
+```sh
 mongodb://app_user:DevPassword123@172.20.0.10:27017/rust_app_db
 ```
 
 **From host (Windows):**
 
-```
+```sh
 mongodb://admin:DevAdmin123@localhost:27017/rust_app_db
 ```
 
@@ -494,6 +494,139 @@ cargo build
 # Run
 cargo run
 ```
+
+### 3.5. QMD - AI-Optimized Code Indexing
+
+**QMD (Query Markup Documents)** indexes your codebase for efficient AI-assisted development with Claude Code.
+
+#### Benefits
+
+- Reduces Claude Code token usage by 60-80%
+- Fast semantic and keyword search
+- Persistent context across sessions
+
+#### Automatic Initialization ✨ NEW in v0.6.10
+
+**QMD now initializes automatically** through 3 complementary mechanisms:
+
+1. **✅ During Deployment** - `deploy-dev.ps1` runs QMD initialization automatically after deployment succeeds
+2. **✅ On First Shell Login** - `.bashrc` detects uninitialized QMD and runs `init_qmd.sh` automatically
+3. **✅ VS Code Connection** - `devcontainer.json` postStartCommand triggers initialization when VS Code connects
+
+**Result: Zero manual intervention needed!** 🎉
+
+#### Manual Initialization (Optional)
+
+If you want to manually trigger initialization or update the index:
+
+```bash
+# SSH into the container
+ssh -p 2222 rustdev@localhost
+
+# Initialize/update QMD (idempotent - safe to run multiple times)
+~/init_qmd.sh
+```
+
+**What happens:**
+
+1. Creates/updates collection for `/workspace` directory (or updates if exists)
+2. Downloads GGUF models (~2GB) **only on first run** (cached afterward)
+3. Generates vector embeddings
+4. Displays index status
+
+**The script is fully idempotent:**
+
+- If collection exists → Updates index
+- If workspace empty → Shows info message
+- If models cached → Reuses them
+- Safe to run anytime, any number of times
+
+**Time required:**
+
+- **First deployment ever**: ~5-10 minutes (model download + indexing)
+- **Subsequent deployments**: ~1-2 minutes (reuses cached models)
+- **Re-run on existing**: Seconds (updates index only)
+
+**Persistence:**
+
+- ✅ **GGUF models**: Cached in `C:/rustdev/docker/qmd_cache` - **never re-download**
+- ✅ **Index database**: Persists across container rebuilds
+- ✅ **Collections**: Persist but may become stale if workspace changes
+
+#### Daily Usage
+
+**Update index after code changes:**
+
+```bash
+qmd-update
+```
+
+**Check index status:**
+
+```bash
+qmd-status
+```
+
+**Full refresh (after major changes):**
+
+```bash
+qmd-refresh
+```
+
+#### How It Works
+
+1. QMD indexes your code with BM25 + vector embeddings
+2. Claude Code queries QMD via MCP (Model Context Protocol)
+3. QMD returns relevant code snippets instead of scanning all files
+4. Result: Faster responses, lower costs, better accuracy
+
+#### Troubleshooting
+
+**"qmd: command not found"**
+
+- Rebuild container (Bun and QMD not installed)
+
+**Models downloading slowly**
+
+- First deployment downloads ~2GB of GGUF models (one-time)
+- Cached in `./volumes/qmd_cache` (persists forever)
+- Subsequent deployments reuse cached models
+
+**QMD Initialization Status**
+
+✅ **Automatic** (v0.6.10+): QMD initializes automatically via:
+
+- Deployment script (runs post-deployment)
+- .bashrc (runs on first shell login)
+- VS Code connection (devcontainer.json postStartCommand)
+
+**Manual override** (if needed):
+
+```bash
+~/init_qmd.sh   # Idempotent - safe to run anytime
+```
+
+**When to use `qmd-update` (daily workflow):**
+
+- **After code changes**: Run `qmd-update` to refresh index
+- **After git pull**: Run `qmd-update` to index new files
+- **Periodic refresh**: Run `qmd-update` every few hours during active development
+- **Automatic check**: `.bashrc` warns if index >24h old
+- **Script is idempotent**: Safe to run anytime
+
+**Outdated search results**
+
+- Run `qmd-update` to re-index
+
+**QMD not being used by Claude Code**
+
+- Check `~/.claude/CLAUDE.md` exists
+- Verify MCP config: `cat ~/.claude/settings.json`
+
+**Empty workspace warning during init**
+
+- Normal if you haven't cloned projects yet
+- Run `~/init_qmd.sh` again after cloning your repository
 
 ### 4. Build for Ubuntu Staging/Production Deployment
 
@@ -618,7 +751,7 @@ cargo watch -x run
 
 **Check data with Mongo Express:**
 
-```
+```http
 http://localhost:8080
 Login: dev / dev123
 ```
@@ -881,7 +1014,7 @@ rm -rf ~/.vscode-server
 
 ### Local Project Structure
 
-```
+```sh
 C:\path\to\set_backend\src\env_dev\
 ├── .env                       # Environment configuration (v0.6.7)
 ├── Dockerfile                 # Dev container definition
@@ -895,7 +1028,7 @@ C:\path\to\set_backend\src\env_dev\
 
 ### Windows Host Directories
 
-```
+```sh
 C:\rustdev\
 ├── projects\                  # Project workspace
 │   └── set_backend\           # Cloned repository (inside container)
@@ -910,7 +1043,7 @@ C:\rustdev\
 
 ### Container Structure
 
-```
+```sh
 /workspace/                    # Mounted from C:\rustdev\projects
 ├── set_backend/               # Your project (clone here)
 │   ├── src/
@@ -997,7 +1130,7 @@ docker compose -f docker-compose-dev.yml logs -f dev-container
 
 ### Service URLs
 
-```
+```sh
 VS Code Remote:    ssh rust-dev
 SSH Manual:        ssh -p 2222 rustdev@localhost
 Backend:           http://localhost:5645
