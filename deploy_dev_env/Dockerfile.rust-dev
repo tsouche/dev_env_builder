@@ -100,10 +100,11 @@ RUN chown 1026:110 /home/rustdev/.claude/CLAUDE.md
 USER rustdev
 RUN echo '' >> /home/rustdev/.bashrc && \
     echo '# QMD Shortcuts' >> /home/rustdev/.bashrc && \
-    echo 'alias qmd-update="cd /workspace && qmd update"' >> /home/rustdev/.bashrc && \
-    echo 'alias qmd-refresh="cd /workspace && qmd update && qmd embed"' >> /home/rustdev/.bashrc && \
+    echo 'alias qmd-update="qmd update"' >> /home/rustdev/.bashrc && \
+    echo 'alias qmd-refresh="qmd update && qmd embed"' >> /home/rustdev/.bashrc && \
     echo 'alias qmd-status="qmd status"' >> /home/rustdev/.bashrc && \
     echo 'alias qmd-search="qmd query"' >> /home/rustdev/.bashrc && \
+    echo 'alias qmd-reindex="~/init_qmd.sh"' >> /home/rustdev/.bashrc && \
     echo '' >> /home/rustdev/.bashrc && \
     echo '# QMD Auto-Initialize (runs once, then updates if needed)' >> /home/rustdev/.bashrc && \
     echo 'function qmd-auto-init() {' >> /home/rustdev/.bashrc && \

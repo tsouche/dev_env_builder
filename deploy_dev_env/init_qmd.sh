@@ -19,47 +19,84 @@ fi
 
 echo "✓ QMD is installed"
 
-# Check if workspace collection already exists
+# Auto-detect and index git repositories
 echo ""
-echo "Checking existing collections..."
-if qmd collection list 2>/dev/null | grep -q "workspace"; then
-    echo "⚠️  Collection 'workspace' already exists"
-    echo "    Updating existing index instead..."
-    cd /workspace
-    qmd update
-    echo "✓ Index updated"
-else
-    # Create new collection
+echo "Scanning for projects..."
+
+PROJECTS_FOUND=0
+
+# Function to index a directory
+index_project() {
+    local project_dir="$1"
+    local project_name="$2"
+    
     echo ""
-    echo "Creating QMD collection for /workspace..."
-    cd /workspace
-    qmd collection add . --name workspace --mask "**/*.{rs,md,toml,json,yaml,yml,sh}"
-    echo "✓ Collection 'workspace' created"
+    echo "Found: $project_name at $project_dir"
+    
+    # Check if collection already exists
+    if qmd collection list 2>/dev/null | grep -q "^$project_name$"; then
+        echo "  → Collection already exists, updating..."
+        cd "$project_dir"
+        qmd update
+        echo "  ✓ Updated"
+    else
+        echo "  → Creating new collection..."
+        cd "$project_dir"
+        qmd collection add . --name "$project_name" --mask "**/*.{rs,md,toml,json,yaml,yml,sh,py,js,ts,jsx,tsx,go,c,cpp,h,hpp}"
+        echo "  ✓ Created"
+    fi
+    
+    # Add context
+    qmd context add "qmd://$project_name" "Project: $project_name"
+    [ -d "$project_dir/src" ] && qmd context add "qmd://$project_name/src" "Source code"
+    [ -d "$project_dir/docs" ] && qmd context add "qmd://$project_name/docs" "Documentation"
+    [ -d "$project_dir/tests" ] && qmd context add "qmd://$project_name/tests" "Tests"
+    
+    PROJECTS_FOUND=$((PROJECTS_FOUND + 1))
+}
+
+# Scan home directory for git repositories
+for dir in ~/*/.git; do
+    if [ -d "$dir" ]; then
+        project_dir=$(dirname "$dir")
+        project_name=$(basename "$project_dir")
+        index_project "$project_dir" "$project_name"
+    fi
+done
+
+# Scan /workspace for git repositories
+if [ -d "/workspace" ]; then
+    for dir in /workspace/*/.git; do
+        if [ -d "$dir" ]; then
+            project_dir=$(dirname "$dir")
+            project_name=$(basename "$project_dir")
+            index_project "$project_dir" "$project_name"
+        fi
+    done
+    
+    # Also check if /workspace itself is a git repo
+    if [ -d "/workspace/.git" ]; then
+        index_project "/workspace" "workspace"
+    fi
 fi
 
-# Add context to help search understand the codebase
-# Context commands are idempotent - they update if exists
-echo ""
-echo "Adding/updating context descriptions..."
-qmd context add qmd://workspace "Rust development workspace with backend services"
-
-# Add more specific contexts if standard directories exist
-[ -d "/workspace/src" ] && qmd context add qmd://workspace/src "Rust source code"
-[ -d "/workspace/docs" ] && qmd context add qmd://workspace/docs "Project documentation"
-[ -d "/workspace/tests" ] && qmd context add qmd://workspace/tests "Test files"
-
-echo "✓ Context descriptions configured"
+if [ $PROJECTS_FOUND -eq 0 ]; then
+    echo "⚠️  No git repositories found in ~/ or /workspace"
+    echo "    Clone a project and run this script again"
+else
+    echo ""
+    echo "✓ Indexed $PROJECTS_FOUND project(s)"
+fi
 
 # Generate vector embeddings (this will download GGUF models on first run)
 echo ""
-echo "Generating vector embeddings..."
-if [ -d "/workspace" ] && [ "$(ls -A /workspace 2>/dev/null)" ]; then
-    echo "Workspace has content, generating embeddings..."
+if [ $PROJECTS_FOUND -gt 0 ]; then
+    echo "Generating vector embeddings for all collections..."
     echo "(Downloading GGUF models ~2GB if not cached...)"
     qmd embed
     echo "✓ Embeddings generated"
 else
-    echo "⚠️  Workspace is empty - skipping embedding generation"
+    echo "⚠️  No projects to embed - skipping embedding generation"
     echo "    Run this script again after cloning your project"
 fi
 

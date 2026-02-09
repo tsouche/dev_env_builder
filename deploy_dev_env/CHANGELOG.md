@@ -15,21 +15,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - **QMD (Query Markup Documents)** installed globally
   - **MCP configuration** automatically set up for Claude Code integration
   - **Global CLAUDE.md** template with usage rules
-  - **Initialization script** (`~/init_qmd.sh`) for first-time setup
-  - **Shell aliases** for maintenance:
+  - **Initialization script** (`~/init_qmd.sh`) with smart auto-detection
+  - **Shell aliases** for maintenance (location-aware, work from any directory):
     - `qmd-update` - Re-index after code changes
     - `qmd-refresh` - Full re-index with embedding refresh
     - `qmd-status` - Check index health
     - `qmd-search` - Quick search (uses hybrid query)
-  - **Index freshness checker** - Warns if index is >24h old on shell login
+    - `qmd-reindex` - Re-scan and index all projects
+  - **Index freshness checker** - Warns if index >24h old on shell login
   - **Persistent QMD cache volume** - GGUF models (~2GB) cached across rebuilds
+  - **Persistent home volume** - Container-local projects persist via named volume
 
-- **✨ Automatic QMD Initialization (Zero-Touch Setup)**
+- **✨ Smart Auto-Detection (Zero-Touch Setup)**
+  - **Automatic project discovery** - Scans `~/` and `/workspace` for git repositories
+  - **Multi-project support** - Indexes all found projects with separate collections
+  - **Location-independent** - Works whether you clone to `~/` or `/workspace`
   - **Deployment-time initialization** - `deploy-dev.ps1` automatically runs `init_qmd.sh` after successful deployment
   - **Shell-based auto-init** - `.bashrc` detects uninitialized QMD and runs init automatically on first login
   - **VS Code integration** - `devcontainer.json` with postStartCommand for seamless VS Code Remote-SSH experience
   - **Fully idempotent script** - Safe to run multiple times, updates existing collections intelligently
-  - **Result**: Users never need to manually think about QMD initialization!
+  - **Result**: Clone anywhere, QMD finds and indexes automatically!
+
+- **🚀 Performance Optimization**
+  - **Named volume for home directory** - Container-local storage for 5-10x faster builds
+  - **Recommended workflow**: Clone to `~/` for native filesystem performance
+  - **Fallback support**: `/workspace` bind mount still works (slower but accessible from Windows)
 
 ### Benefits
 
@@ -37,6 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Faster context gathering** - Cached embeddings vs. file scanning
 - **Better search results** - Semantic understanding vs. grep
 - **Persistent knowledge base** - Survives container restarts
+- **5-10x faster compilation** - When using container-local storage (`~/`)
 
 ### Technical Details
 
@@ -46,12 +57,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - qwen3-reranker-0.6b-q8_0 (~640MB)
   - qmd-query-expansion-1.7B-q4_k_m (~1.1GB)
 - Index stored in SQLite: `~/.cache/qmd/index.sqlite`
-- Volume-mounted: `${VOLUME_QMD_CACHE}` → `/home/rustdev/.cache/qmd`
+- Volume mappings:
+  - `${VOLUME_QMD_CACHE}` → `/home/rustdev/.cache/qmd` (GGUF models)
+  - `${VOLUME_RUSTDEV_HOME}` → `/home/rustdev` (persistent home directory)
 
 ### Documentation
 
-- Updated [README.md](README.md) with QMD setup and usage section
-- Created [init_qmd.sh](init_qmd.sh) initialization script
+- Updated [README.md](README.md) with QMD setup, performance recommendations, and auto-detection details
+- Created [init_qmd.sh](init_qmd.sh) initialization script with smart project discovery
 - Created [CLAUDE.md.template](CLAUDE.md.template) for global Claude Code rules
 - See [QMD_IMPLEMENTATION_GUIDE.md](../QMD_IMPLEMENTATION_GUIDE.md) for complete details
 
@@ -80,7 +93,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Updated `deploy-dev.ps1` to show info message about claude.ai subscription authentication
   - Users should run `claude login` inside container to authenticate with Pro/Max subscription
   - This allows consuming claude.ai subscription usage before API credits
-  - See: https://support.claude.com/en/articles/11145838-using-claude-code-with-your-pro-or-max-plan
+  - See: <https://support.claude.com/en/articles/11145838-using-claude-code-with-your-pro-or-max-plan>
 
 ### Documentation
 

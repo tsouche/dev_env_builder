@@ -42,6 +42,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # QMD cache volume (for GGUF models and index)
       - ${VOLUME_QMD_CACHE:-./volumes/qmd_cache}:/home/rustdev/.cache/qmd
+      # Persistent home directory for container-local development (performance)
+      - ${VOLUME_RUSTDEV_HOME:-rustdev_home}:/home/rustdev
     
     networks:
       - ${NETWORK_NAME:-dev-network}
@@ -98,8 +100,10 @@ services:
       dev-network:
         ipv4_address: 172.20.0.12
 
-# All volumes are bind mounts to host directories
-volumes: {}
+# Named volumes for performance-critical data
+volumes:
+  rustdev_home:
+    name: ${VOLUME_RUSTDEV_HOME:-rustdev_home}
 
 networks:
   dev-network:

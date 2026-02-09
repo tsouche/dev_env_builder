@@ -505,57 +505,93 @@ cargo run
 - Fast semantic and keyword search
 - Persistent context across sessions
 
-#### Automatic Initialization ✨ NEW in v0.6.10
+#### 🚀 Performance Recommendation
 
-**QMD now initializes automatically** through 3 complementary mechanisms:
-
-1. **✅ During Deployment** - `deploy-dev.ps1` runs QMD initialization automatically after deployment succeeds
-2. **✅ On First Shell Login** - `.bashrc` detects uninitialized QMD and runs `init_qmd.sh` automatically
-3. **✅ VS Code Connection** - `devcontainer.json` postStartCommand triggers initialization when VS Code connects
-
-**Result: Zero manual intervention needed!** 🎉
-
-#### Manual Initialization (Optional)
-
-If you want to manually trigger initialization or update the index:
+**For best performance, clone projects to `~/` (container-local) instead of `/workspace` (bind mount):**
 
 ```bash
-# SSH into the container
-ssh -p 2222 rustdev@localhost
+ssh rust-dev
 
-# Initialize/update QMD (idempotent - safe to run multiple times)
+# ✅ RECOMMENDED: Container-local storage (5-10x faster compilation)
+cd ~
+git clone https://github.com/your-username/your-project.git
+
+# ❌ SLOWER: Bind mount to Windows (NTFS → WSL2 → Docker overhead)
+cd /workspace
+git clone https://github.com/your-username/your-project.git
+```
+
+**Why container-local is faster:**
+
+- ⚡ **Native Linux ext4 filesystem** vs cross-platform translation
+- 🚀 **5-10x faster `cargo build`** times
+- ✨ **Instant rust-analyzer** responses (no lag)
+- 📂 **Reliable file watchers** (cargo watch, nodemon work perfectly)
+- 💾 **Persistent via named volume** (`rustdev_home`) - survives rebuilds
+
+**Data safety:** Your home directory is backed by a Docker named volume, so projects persist across container rebuilds. Just **push to git frequently** for ultimate safety.
+
+#### Smart Auto-Detection ✨ NEW in v0.6.10
+
+**QMD automatically detects and indexes all git repositories** in both locations:
+
+- **`~/` (recommended)** - All git repos in home directory
+- **`/workspace`** - All git repos in workspace mount
+
+**Initialization happens automatically** through 3 mechanisms:
+
+1. **✅ During Deployment** - `deploy-dev.ps1` runs QMD initialization after deployment
+2. **✅ On First Shell Login** - `.bashrc` detects uninitialized QMD and runs `init_qmd.sh`
+3. **✅ VS Code Connection** - `devcontainer.json` postStartCommand triggers on Remote-SSH
+
+**Result: Clone anywhere, QMD indexes automatically!** 🎉
+
+#### Manual Re-indexing (Optional)
+
+After cloning new projects, re-run initialization:
+
+```bash
+# Scans ~/  and /workspace for all git repos and indexes them
 ~/init_qmd.sh
 ```
 
-**What happens:**
+Or use the convenient alias:
 
-1. Creates/updates collection for `/workspace` directory (or updates if exists)
-2. Downloads GGUF models (~2GB) **only on first run** (cached afterward)
-3. Generates vector embeddings
-4. Displays index status
+```bash
+qmd-reindex
+```
+
+**What the auto-detection does:**
+
+1. Scans `~/` and `/workspace` for git repositories
+2. Creates/updates collections for each project
+3. Downloads GGUF models (~2GB) **only on first run** (cached afterward)
+4. Generates vector embeddings for all projects
+5. Adds context descriptions automatically
 
 **The script is fully idempotent:**
 
 - If collection exists → Updates index
-- If workspace empty → Shows info message
+- If no projects found → Shows warning
 - If models cached → Reuses them
 - Safe to run anytime, any number of times
 
 **Time required:**
 
-- **First deployment ever**: ~5-10 minutes (model download + indexing)
-- **Subsequent deployments**: ~1-2 minutes (reuses cached models)
-- **Re-run on existing**: Seconds (updates index only)
+- **First run ever**: ~5-10 minutes (model download + indexing)
+- **Subsequent runs**: ~1-2 minutes per project (reuses cached models)
+- **Re-index existing**: Seconds (updates index only)
 
 **Persistence:**
 
 - ✅ **GGUF models**: Cached in `C:/rustdev/docker/qmd_cache` - **never re-download**
-- ✅ **Index database**: Persists across container rebuilds
-- ✅ **Collections**: Persist but may become stale if workspace changes
+- ✅ **Index database**: Persists in `~/.cache/qmd` (named volume)
+- ✅ **Your projects**: Persist in `rustdev_home` named volume
+- ✅ **Collections**: Auto-update when you run `qmd-reindex`
 
 #### Daily Usage
 
-**Update index after code changes:**
+**Update index after code changes** (works from any directory):
 
 ```bash
 qmd-update
@@ -571,6 +607,20 @@ qmd-status
 
 ```bash
 qmd-refresh
+```
+
+**Re-scan and index new projects:**
+
+```bash
+qmd-reindex  # or ~/init_qmd.sh
+```
+
+**Manual search from command line:**
+
+```bash
+qmd search "error handling"
+qmd query "authentication flow"
+qmd vsearch "similar login patterns"
 ```
 
 #### How It Works
@@ -589,34 +639,53 @@ qmd-refresh
 **Models downloading slowly**
 
 - First deployment downloads ~2GB of GGUF models (one-time)
-- Cached in `./volumes/qmd_cache` (persists forever)
+- Cached in `C:/rustdev/docker/qmd_cache` (persists forever)
 - Subsequent deployments reuse cached models
+
+**"No projects found" during initialization**
+
+- Clone a git repository first:
+
+  ```bash
+  cd ~  # Recommended for performance
+  git clone https://github.com/your-username/your-project.git
+  ~/init_qmd.sh  # Re-run to detect new project
+  ```
 
 **QMD Initialization Status**
 
-✅ **Automatic** (v0.6.10+): QMD initializes automatically via:
+✅ **Automatic** (v0.6.10+): QMD auto-detects and indexes:
 
-- Deployment script (runs post-deployment)
-- .bashrc (runs on first shell login)
-- VS Code connection (devcontainer.json postStartCommand)
+- All git repositories in `~/` (home directory)
+- All git repositories in `/workspace` (bind mount)
+- Runs automatically via:
+  - Deployment script (post-deployment)
+  - .bashrc (first shell login)
+  - VS Code connection (devcontainer.json postStartCommand)
 
-**Manual override** (if needed):
+**Manual re-indexing** (after cloning new projects):
 
 ```bash
-~/init_qmd.sh   # Idempotent - safe to run anytime
+qmd-reindex   # Alias for ~/init_qmd.sh
+# Scans ~/  and /workspace, indexes all git repos
 ```
 
-**When to use `qmd-update` (daily workflow):**
+**When to use maintenance commands:**
 
-- **After code changes**: Run `qmd-update` to refresh index
-- **After git pull**: Run `qmd-update` to index new files
-- **Periodic refresh**: Run `qmd-update` every few hours during active development
-- **Automatic check**: `.bashrc` warns if index >24h old
-- **Script is idempotent**: Safe to run anytime
+| Command | When to Use | Works From |
+|---------|-------------|------------|
+| `qmd-update` | After code changes | Any directory |
+| `qmd-refresh` | After major refactoring | Any directory |
+| `qmd-reindex` | After cloning new projects | Any directory |
+| `qmd-status` | Check index health | Any directory |
+| `qmd-search "query"` | Quick search | Any directory |
+
+**All aliases are location-aware** - they work from any directory (no need to `cd` first)
 
 **Outdated search results**
 
-- Run `qmd-update` to re-index
+- Run `qmd-update` to re-index current project
+- Or `qmd-reindex` to re-scan and update all projects
 
 **QMD not being used by Claude Code**
 

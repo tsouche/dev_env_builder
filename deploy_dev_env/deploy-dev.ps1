@@ -462,7 +462,7 @@ Write-Host ""
 
 try {
     # Run init_qmd.sh inside the container as rustdev user
-    docker exec -u rustdev $env:CONTAINER_NAME bash -c "cd /workspace && ~/init_qmd.sh"
+    docker exec -u rustdev $env:CONTAINER_NAME bash -c "~/init_qmd.sh"
     Write-Success "QMD initialization completed"
     Write-Host ""
     Write-Host "✅ QMD is ready! Claude Code will automatically use it for searches." -ForegroundColor Green

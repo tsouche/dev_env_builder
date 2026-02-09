@@ -77,4 +77,8 @@ This project was made possible with the assistance of **Claude Sonnet 4.5** by A
   - 60-80% reduction in Claude token usage
   - Semantic search with BM25 + vector embeddings
   - Persistent knowledge base across sessions
+  - Smart auto-detection of projects in `~/` and `/workspace`
+  - Location-independent indexing (works anywhere you clone)
+  - 5-10x faster compilation with container-local storage
 - ✅ **MCP Integration** - Automatic configuration for Claude Code
+- ✅ **Persistent home volume** - Named volume for optimal performance
