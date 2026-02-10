@@ -86,6 +86,74 @@ if [ $PROJECTS_FOUND -eq 0 ]; then
 else
     echo ""
     echo "✓ Indexed $PROJECTS_FOUND project(s)"
+    
+    # Update Claude Code project configuration to use QMD contexts
+    echo ""
+    echo "Configuring Claude Code to use QMD for code searches..."
+    
+    python3 -c "
+import json
+import os
+
+# Read current configuration
+config_file = os.path.expanduser('~/.claude.json')
+if os.path.exists(config_file):
+    with open(config_file, 'r') as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            print('Warning: Could not parse .claude.json, skipping project config update')
+            exit(0)
+else:
+    print('Warning: .claude.json not found, skipping project config update')
+    exit(0)
+
+# Get list of QMD contexts
+import subprocess
+try:
+    result = subprocess.run(['qmd', 'context', 'list'], capture_output=True, text=True, timeout=10)
+    if result.returncode == 0:
+        contexts_output = result.stdout
+        # Parse contexts - look for lines like 'set_backend' and '  src'
+        contexts = []
+        current_project = None
+        for line in contexts_output.split('\n'):
+            line = line.strip()
+            if line and not line.startswith(' ') and line != 'Configured Contexts':
+                current_project = line
+                contexts.append(f'qmd://{current_project}')
+            elif line.startswith(' ') and current_project and line.strip():
+                context_name = line.strip().split()[0]
+                if context_name != '/':
+                    contexts.append(f'qmd://{current_project}/{context_name}')
+        
+        # Update project configurations
+        projects_updated = 0
+        for project_path in ['/workspace', '/home/rustdev/set_backend']:
+            if os.path.exists(project_path):
+                if 'projects' not in data:
+                    data['projects'] = {}
+                if project_path not in data['projects']:
+                    data['projects'][project_path] = {}
+                
+                # Add QMD contexts to this project
+                project_contexts = [ctx for ctx in contexts if project_path.split('/')[-1] in ctx]
+                if project_contexts:
+                    data['projects'][project_path]['mcpContextUris'] = project_contexts
+                    projects_updated += 1
+        
+        # Save updated configuration
+        if projects_updated > 0:
+            with open(config_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            print(f'✓ Updated Claude Code configuration for {projects_updated} project(s)')
+        else:
+            print('ℹ️  No projects needed QMD context configuration')
+    else:
+        print('Warning: Could not get QMD contexts, skipping project config update')
+except Exception as e:
+    print(f'Warning: Error updating project config: {e}')
+"
 fi
 
 # Generate vector embeddings (this will download GGUF models on first run)
@@ -113,8 +181,12 @@ echo "✓ QMD initialization complete!"
 echo "========================================="
 echo ""
 echo "Notes:"
-echo "  - GGUF models (~2GB) are cached in: ~/.cache/qmd/models/"
-echo "  - Index database persists across container rebuilds"
+echo "  - GGUF models (~2GB) are stored in: ~/.cache/qmd/models/"
+echo "    (Mounted from Windows: C:/rustdev/docker/qmd_models - shared across projects)"
+echo "  - Index database persisted in: ~/.cache/qmd/index.sqlite"
+echo "    (In per-project home volume for clean separation)"
+echo "  - Claude history in: ~/.claude/"
+echo "    (Mounted from Windows: C:/rustdev/claude_config - eternal persistence)"
 echo "  - This script is safe to run multiple times"
 echo ""
 echo "Next steps:"

@@ -264,6 +264,84 @@ RUN echo '' >> /home/${USERNAME}/.bashrc && \
     echo 'alias cu="cargo update"' >> /home/${USERNAME}/.bashrc
 
 ################################################################################
+# QMD - Query Markup Documents (AI-optimized code indexing)
+# Install in base image to avoid re-downloading on every deployment
+################################################################################
+USER root
+
+# Install QMD globally using Bun (requires root for global installation)
+RUN bun install -g github:tobi/qmd
+
+# Verify QMD installation
+RUN qmd --version || echo "QMD installed, waiting for first use to download models"
+
+# Create QMD directories with proper permissions from the start
+RUN mkdir -p /home/${USERNAME}/.local/share && \
+    mkdir -p /home/${USERNAME}/.cache/qmd && \
+    chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.local && \
+    chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.cache
+
+# Add QMD to PATH
+USER ${USERNAME}
+RUN echo 'export PATH="$HOME/.bun/bin:/usr/local/bin:$PATH"' >> /home/${USERNAME}/.bashrc
+
+# Configure Claude Code MCP integration for QMD
+# Create .claude directory (will be bind mounted from Windows)
+USER root
+RUN mkdir -p /home/${USERNAME}/.claude && \
+    chown -R ${USER_UID}:${USER_GID} /home/${USERNAME}/.claude
+
+# Create symlink: ~/.claude.json -> ~/.claude/claude.json for eternal persistence
+# Claude Code manages .claude.json, symlinking it to .claude/ makes it eternal
+USER ${USERNAME}
+RUN ln -s /home/${USERNAME}/.claude/claude.json /home/${USERNAME}/.claude.json
+
+# Add QMD shortcuts and auto-init function to bashrc
+USER ${USERNAME}
+RUN echo '' >> /home/${USERNAME}/.bashrc && \
+    echo '# QMD Shortcuts' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias qmd-update="qmd update"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias qmd-refresh="qmd update && qmd embed"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias qmd-status="qmd status"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias qmd-search="qmd query"' >> /home/${USERNAME}/.bashrc && \
+    echo 'alias qmd-reindex="~/init_qmd.sh"' >> /home/${USERNAME}/.bashrc && \
+    echo '' >> /home/${USERNAME}/.bashrc && \
+    echo '# QMD Auto-Initialize (runs once, then updates if needed)' >> /home/${USERNAME}/.bashrc && \
+    echo 'function qmd-auto-init() {' >> /home/${USERNAME}/.bashrc && \
+    echo '    # Only run for interactive shells' >> /home/${USERNAME}/.bashrc && \
+    echo '    if [ -z "$PS1" ]; then return; fi' >> /home/${USERNAME}/.bashrc && \
+    echo '    ' >> /home/${USERNAME}/.bashrc && \
+    echo '    # Check if we need to initialize (database in .cache/qmd)' >> /home/${USERNAME}/.bashrc && \
+    echo '    if [ ! -f ~/.cache/qmd/index.sqlite ]; then' >> /home/${USERNAME}/.bashrc && \
+    echo '        echo "🔧 QMD not initialized. Running auto-init..."' >> /home/${USERNAME}/.bashrc && \
+    echo '        ~/init_qmd.sh' >> /home/${USERNAME}/.bashrc && \
+    echo '        return' >> /home/${USERNAME}/.bashrc && \
+    echo '    fi' >> /home/${USERNAME}/.bashrc && \
+    echo '    ' >> /home/${USERNAME}/.bashrc && \
+    echo '    # Check index freshness (warn if >24h old)' >> /home/${USERNAME}/.bashrc && \
+    echo '    LAST_UPDATE=$(stat -c %Y ~/.cache/qmd/index.sqlite 2>/dev/null || echo 0)' >> /home/${USERNAME}/.bashrc && \
+    echo '    NOW=$(date +%s)' >> /home/${USERNAME}/.bashrc && \
+    echo '    DIFF=$((NOW - LAST_UPDATE))' >> /home/${USERNAME}/.bashrc && \
+    echo '    if [ $DIFF -gt 86400 ]; then' >> /home/${USERNAME}/.bashrc && \
+    echo '        echo "⚠️  QMD index is >24h old. Consider running: qmd-update"' >> /home/${USERNAME}/.bashrc && \
+    echo '    fi' >> /home/${USERNAME}/.bashrc && \
+    echo '    ' >> /home/${USERNAME}/.bashrc && \
+    echo '    # Check for new repositories periodically (every 1 hour)' >> /home/${USERNAME}/.bashrc && \
+    echo '    LAST_REPO_CHECK=~/.cache/qmd/last_repo_check' >> /home/${USERNAME}/.bashrc && \
+    echo '    if [ ! -f "$LAST_REPO_CHECK" ]; then' >> /home/${USERNAME}/.bashrc && \
+    echo '        touch "$LAST_REPO_CHECK"' >> /home/${USERNAME}/.bashrc && \
+    echo '    fi' >> /home/${USERNAME}/.bashrc && \
+    echo '    LAST_CHECK_TIME=$(stat -c %Y "$LAST_REPO_CHECK" 2>/dev/null || echo 0)' >> /home/${USERNAME}/.bashrc && \
+    echo '    CHECK_DIFF=$((NOW - LAST_CHECK_TIME))' >> /home/${USERNAME}/.bashrc && \
+    echo '    if [ $CHECK_DIFF -gt 3600 ]; then' >> /home/${USERNAME}/.bashrc && \
+    echo '        echo "🔍 Checking for new repositories..."' >> /home/${USERNAME}/.bashrc && \
+    echo '        ~/init_qmd.sh > /dev/null 2>&1' >> /home/${USERNAME}/.bashrc && \
+    echo '        touch "$LAST_REPO_CHECK"' >> /home/${USERNAME}/.bashrc && \
+    echo '    fi' >> /home/${USERNAME}/.bashrc && \
+    echo '}' >> /home/${USERNAME}/.bashrc && \
+    echo 'qmd-auto-init' >> /home/${USERNAME}/.bashrc
+
+################################################################################
 # Workspace Setup
 ################################################################################
 USER root

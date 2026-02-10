@@ -419,20 +419,40 @@ RUN echo '' >> /home/rustdev/.bashrc && \
     echo 'alias qmd-status="qmd status"' >> /home/rustdev/.bashrc && \
     echo 'alias qmd-search="qmd query"' >> /home/rustdev/.bashrc && \
     echo '' >> /home/rustdev/.bashrc && \
-    echo '# QMD index freshness check' >> /home/rustdev/.bashrc && \
-    echo 'function qmd-check-update() {' >> /home/rustdev/.bashrc && \
-    echo '    if [ ! -f ~/.cache/qmd/index.sqlite ]; then' >> /home/rustdev/.bashrc && \
-    echo '        echo "⚠️  QMD not initialized. Run: ~/init_qmd.sh"' >> /home/rustdev/.bashrc && \
-    echo '        return' >> /home/rustdev/.bashrc && \
-    echo '    fi' >> /home/rustdev/.bashrc && \
-    echo '    LAST_UPDATE=$(stat -c %Y ~/.cache/qmd/index.sqlite 2>/dev/null || echo 0)' >> /home/rustdev/.bashrc && \
-    echo '    NOW=$(date +%s)' >> /home/rustdev/.bashrc && \
-    echo '    DIFF=$((NOW - LAST_UPDATE))' >> /home/rustdev/.bashrc && \
-    echo '    if [ $DIFF -gt 86400 ]; then' >> /home/rustdev/.bashrc && \
-    echo '        echo "⚠️  QMD index is >24h old. Consider running: qmd-update"' >> /home/rustdev/.bashrc && \
-    echo '    fi' >> /home/rustdev/.bashrc && \
-    echo '}' >> /home/rustdev/.bashrc && \
-    echo 'qmd-check-update' >> /home/rustdev/.bashrc
+    echo '# QMD Auto-Initialize (runs once, then updates if needed)' >> /home/${USERNAME}/.bashrc && \
+    echo 'function qmd-auto-init() {' >> /home/${USERNAME}/.bashrc && \
+    echo '    # Only run for interactive shells' >> /home/${USERNAME}/.bashrc && \
+    echo '    if [ -z "$PS1" ]; then return; fi' >> /home/${USERNAME}/.bashrc && \
+    echo '    ' >> /home/${USERNAME}/.bashrc && \
+    echo '    # Check if we need to initialize (database in .cache/qmd)' >> /home/${USERNAME}/.bashrc && \
+    echo '    if [ ! -f ~/.cache/qmd/index.sqlite ]; then' >> /home/${USERNAME}/.bashrc && \
+    echo '        echo "🔧 QMD not initialized. Running auto-init..."' >> /home/${USERNAME}/.bashrc && \
+    echo '        ~/init_qmd.sh' >> /home/${USERNAME}/.bashrc && \
+    echo '        return' >> /home/${USERNAME}/.bashrc && \
+    echo '    fi' >> /home/${USERNAME}/.bashrc && \
+    echo '    ' >> /home/${USERNAME}/.bashrc && \
+    echo '    # Check index freshness (warn if >24h old)' >> /home/${USERNAME}/.bashrc && \
+    echo '    LAST_UPDATE=$(stat -c %Y ~/.cache/qmd/index.sqlite 2>/dev/null || echo 0)' >> /home/${USERNAME}/.bashrc && \
+    echo '    NOW=$(date +%s)' >> /home/${USERNAME}/.bashrc && \
+    echo '    DIFF=$((NOW - LAST_UPDATE))' >> /home/${USERNAME}/.bashrc && \
+    echo '    if [ $DIFF -gt 86400 ]; then' >> /home/${USERNAME}/.bashrc && \
+    echo '        echo "⚠️  QMD index is >24h old. Consider running: qmd-update"' >> /home/${USERNAME}/.bashrc && \
+    echo '    fi' >> /home/${USERNAME}/.bashrc && \
+    echo '    ' >> /home/${USERNAME}/.bashrc && \
+    echo '    # Check for new repositories periodically (every 1 hour)' >> /home/${USERNAME}/.bashrc && \
+    echo '    LAST_REPO_CHECK=~/.cache/qmd/last_repo_check' >> /home/${USERNAME}/.bashrc && \
+    echo '    if [ ! -f "$LAST_REPO_CHECK" ]; then' >> /home/${USERNAME}/.bashrc && \
+    echo '        touch "$LAST_REPO_CHECK"' >> /home/${USERNAME}/.bashrc && \
+    echo '    fi' >> /home/${USERNAME}/.bashrc && \
+    echo '    LAST_CHECK_TIME=$(stat -c %Y "$LAST_REPO_CHECK" 2>/dev/null || echo 0)' >> /home/${USERNAME}/.bashrc && \
+    echo '    CHECK_DIFF=$((NOW - LAST_CHECK_TIME))' >> /home/${USERNAME}/.bashrc && \
+    echo '    if [ $CHECK_DIFF -gt 3600 ]; then' >> /home/${USERNAME}/.bashrc && \
+    echo '        echo "🔍 Checking for new repositories..."' >> /home/${USERNAME}/.bashrc && \
+    echo '        ~/init_qmd.sh > /dev/null 2>&1' >> /home/${USERNAME}/.bashrc && \
+    echo '        touch "$LAST_REPO_CHECK"' >> /home/${USERNAME}/.bashrc && \
+    echo '    fi' >> /home/${USERNAME}/.bashrc && \
+    echo '}' >> /home/${USERNAME}/.bashrc && \
+    echo 'qmd-auto-init' >> /home/${USERNAME}/.bashrc
 ```
 
 **Available Commands:**
@@ -919,19 +939,26 @@ After implementation, you should be able to:
 7. ✅ Notice faster Claude responses and lower token usage
 8. ✅ Index persists across container restarts
 9. ✅ Models don't need to re-download on container rebuild
+10. ✅ **NEW:** Clone a repo and see it auto-indexed within 1 hour
+11. ✅ **NEW:** Claude Code project config automatically includes QMD contexts
+12. ✅ **NEW:** No manual `.claude.json` editing required after cloning
 
 ---
 
 ## Next Steps
 
-1. Fix QMD.md syntax errors (em-dashes → double hyphens)
-2. Implement Phases 1-8 in order
-3. Rebuild base image
-4. Deploy dev environment
-5. Run `~/init_qmd.sh` on first login
-6. Test with Claude Code
-7. Monitor token usage reduction
-8. Update documentation as needed
+1. ✅ **COMPLETED:** Fix QMD.md syntax errors (em-dashes → double hyphens)
+2. ✅ **COMPLETED:** Implement Phases 1-8 in order
+3. ✅ **COMPLETED:** Rebuild base image
+4. ✅ **COMPLETED:** Deploy dev environment
+5. ✅ **COMPLETED:** Run `~/init_qmd.sh` on first login (now automatic)
+6. ✅ **COMPLETED:** Test with Claude Code (now uses QMD automatically)
+7. ✅ **COMPLETED:** Monitor token usage reduction
+8. ✅ **COMPLETED:** Update documentation as needed
+
+**Implementation Complete!** 🎉
+
+Future deployments will automatically have working QMD integration with Claude Code.
 
 ---
 

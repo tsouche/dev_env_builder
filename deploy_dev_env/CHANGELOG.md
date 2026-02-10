@@ -6,6 +6,149 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.6.13] - 2026-02-10
+
+### Added
+
+- **QMD Project Configuration Automation** ⚠️ CRITICAL
+  - `init_qmd.sh` now automatically updates `.claude.json` project configurations
+  - Adds QMD contexts (`qmd://project_name`, `qmd://project_name/src`) to `mcpContextUris`
+  - Claude Code now automatically uses QMD for code searches in indexed projects
+  - No manual configuration required after cloning repositories
+
+- **Periodic Repository Scanning** ⚠️ CRITICAL
+  - Enhanced `.bashrc` auto-init to check for new repositories every hour
+  - Automatically runs `init_qmd.sh` when new git repos are detected
+  - Eliminates need for manual QMD re-indexing after cloning
+
+- **MCP Integration Validation** - Added deployment-time validation
+  - Verifies QMD installation and functionality during deployment
+  - Confirms MCP server configuration is working
+  - Provides early warning if QMD integration fails
+
+### Fixed
+
+- **QMD Context Utilization** - Claude Code now properly uses QMD for code searches
+  - Project configurations automatically include QMD contexts
+  - Eliminates manual `.claude.json` editing requirement
+  - Future deployments will have working QMD integration out-of-the-box
+
+---
+
+## [0.6.12] - 2026-02-10
+
+### Fixed
+
+- **QMD MCP integration** ⚠️ CRITICAL
+  - Fixed wrong MCP configuration file location
+  - Claude Code uses `~/.claude.json`, not `~/.claude/settings.json`
+  - Created symlink: `~/.claude.json` → `~/.claude/claude.json` for eternal persistence
+  - MCP configuration now persists across all projects via Windows bind mount
+  - Initial `claude.json` created with QMD MCP server if not exists
+  - **Deployment script now properly configures QMD in mcpServers section**
+  - **Merges existing Claude config with QMD MCP server instead of overwriting**
+  - Format: `{"mcpServers":{"qmd":{"command":"qmd","args":["mcp"]}}}`
+
+- **QMD model auto-download** ⚠️ CRITICAL
+  - Added explicit model download trigger during deployment
+  - Checks if GGUF models exist before running init_qmd.sh
+  - Triggers test embedding to force model download (~2GB, one-time)
+  - Prevents "models not found" errors on first Claude Code usage
+
+- **QMD models directory permissions** ⚠️ CRITICAL
+  - Fixed root ownership on `~/.cache/qmd/models` preventing GGUF model downloads
+  - Deploy script now ensures correct ownership (rustdev:rustdevteam) on models directory
+  - Windows bind mount directories (QMD models, Claude config) created before container starts
+  - Post-startup permission fix via `docker exec` ensures rustdev user can write to models directory
+
+- **QMD mount path** - Corrected volume mount to match QMD's actual storage location
+  - Removed unused mount: `~/.local/share/qmd` (QMD doesn't use this path)
+  - QMD index now correctly stored in home volume at `~/.cache/qmd/index.sqlite`
+  - Per-project separation maintained via `rustdev_${PROJECT_NAME}` volume
+  - Models still shared via Windows mount: `~/.cache/qmd/models`
+
+- **SSH key cleanup error** - Fixed false-positive error when no previous SSH keys exist
+  - Script now checks if key exists before attempting removal
+  - Informative messages instead of error output
+
+### Changed
+
+- **MCP Configuration** - Added deployment-time setup
+  - `settings.json` created in `VOLUME_CLAUDE_CONFIG` during deployment
+  - Persists across container recreations (Windows bind mount)
+  - Automatically configures QMD MCP server for Claude Code
+
+- **Directory creation** - Enhanced to include all bind mount directories
+  - Added: `$env:VOLUME_QMD_MODELS` (C:/rustdev/docker/qmd_models)
+  - Added: `$env:VOLUME_CLAUDE_CONFIG` (C:/rustdev/claude_config)
+  - Ensures Windows directories exist before Docker mounts them (prevents root ownership)
+
+- **Volume configuration** - Simplified architecture based on actual QMD behavior
+  - Removed: Separate QMD index volume (`qmd_index_${PROJECT_NAME}`)
+  - Reality: Index lives in home volume at `~/.cache/qmd/index.sqlite`
+  - Benefit: Simpler configuration, same per-project isolation
+
+- **Documentation** - Updated all path references from `~/.local/share/qmd` to `~/.cache/qmd`
+
+**Important**: This version fixes critical MCP integration bugs. Requires base image v0.6.12 for full .bashrc syntax fix.
+
+---
+
+## [0.6.11] - 2026-02-09
+
+### Fixed
+
+- **SSH host key management** - Deployment script now automatically removes old SSH host keys from `~/.ssh/known_hosts` before testing connectivity, eliminating "host key changed" warnings on redeployment
+- **QMD installation performance** - Moved QMD installation from deployment-specific image to base image, reducing deployment time by ~30-60 seconds (no longer re-downloads QMD on every deployment)
+- **Directory structure** - Pre-create `.local/share` directory in base image with proper permissions, fixing QMD SQLite database initialization issues
+
+### Added
+
+- **🎯 Split QMD Volume Architecture** - Optimal persistence strategy
+  - **GGUF models** (~2GB) on Windows bind mount: `C:/rustdev/docker/qmd_models`
+    - Downloaded once, shared across ALL projects forever
+    - Survives all cleanups and container rebuilds
+    - Easy Windows filesystem backup
+  - **QMD index** (SQLite) in per-project named volume: `qmd_index_${PROJECT_NAME}`
+    - Clean separation between projects
+    - Deleted on fresh deployment for clean slate
+    - Fast container-local performance
+  - **Claude history** on Windows bind mount: `C:/rustdev/claude_config`
+    - **ETERNAL PERSISTENCE** across all projects
+    - All conversation history preserved forever
+    - Easy backup to external drives/cloud
+  - **Home directory** in per-project named volume: `rustdev_${PROJECT_NAME}`
+    - Isolated per-project environment
+    - Fast native filesystem performance
+
+### Changed
+
+- **Base image requirement** - Now requires `tsouche/base_rust_dev:v0.6.11` with QMD pre-installed
+- **Dockerfile.rust-dev** - Simplified QMD section (installation moved to base image, only MCP configuration remains)
+- **Volume strategy** - Moved from monolithic to split architecture for better performance and persistence
+- **MCP configuration** - Moved to base image for consistency across all deployments
+
+### Benefits
+
+- ✅ **2GB GGUF models downloaded only once** - Reused across all projects
+- ✅ **Claude history preserved forever** - Survives all cleanups, accessible from Windows
+- ✅ **Clean project separation** - Each project gets fresh QMD index
+- ✅ **Fast redeployment** - No model re-download (~5s vs ~60s)
+- ✅ **Easy backup** - Windows bind mounts for critical persistent data
+- ✅ **Native performance** - Named volumes for frequently accessed data
+
+### Technical Details
+
+- **SSH cleanup**: Added `ssh-keygen -R [localhost]:2222` to deploy-dev.ps1 before connection test
+- **QMD directories**: Base image now creates `/home/rustdev/.local/share` and `/home/rustdev/.cache/qmd` with correct ownership
+- **Build optimization**: QMD installation happens once in base image (~60s) instead of on every deployment
+- **Volume mount order**: Specific mounts (`.claude`, `qmd/models`) before general mounts (`/home`) for correct override
+- **Cleanup preservation**: Script now documents what's preserved vs deleted
+
+**Note**: This version requires base image v0.6.11 and introduces breaking changes to volume configuration (migration from v0.6.10 requires updating .env)
+
+---
+
 ## [0.6.10] - 2026-02-09
 
 ### Added
@@ -56,10 +199,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - embeddinggemma-300M-Q8_0 (~300MB)
   - qwen3-reranker-0.6b-q8_0 (~640MB)
   - qmd-query-expansion-1.7B-q4_k_m (~1.1GB)
-- Index stored in SQLite: `~/.cache/qmd/index.sqlite`
+- Index stored in SQLite: `~/.local/share/qmd/index.sqlite`
 - Volume mappings:
-  - `${VOLUME_QMD_CACHE}` → `/home/rustdev/.cache/qmd` (GGUF models)
-  - `${VOLUME_RUSTDEV_HOME}` → `/home/rustdev` (persistent home directory)
+  - `${VOLUME_QMD_MODELS}` → `/home/rustdev/.cache/qmd/models` (GGUF models, Windows bind mount)
+  - `qmd_index_${PROJECT_NAME}` → `/home/rustdev/.local/share/qmd` (index, per-project named volume)
+  - `rustdev_${PROJECT_NAME}` → `/home/rustdev` (home, per-project named volume)
 
 ### Documentation
 

@@ -49,12 +49,17 @@ Write-Host "This script will DELETE the following:" -ForegroundColor Yellow
 Write-Host "  - All Docker containers (dev-container, dev-mongodb, dev-mongo-express)" -ForegroundColor White
 Write-Host "  - All Docker images related to this project" -ForegroundColor White
 Write-Host "  - All Docker networks (dev-network)" -ForegroundColor White
+Write-Host "  - Per-project named volumes (rustdev_*, qmd_index_*)" -ForegroundColor White
 Write-Host "  - Project directory: $env:PROJECT_PATH" -ForegroundColor White
 Write-Host "  - MongoDB data: $env:VOLUME_MONGODB_DATA" -ForegroundColor White
 Write-Host "  - MongoDB init: $env:VOLUME_MONGODB_INIT" -ForegroundColor White
 Write-Host "  - Cargo cache: $env:VOLUME_CARGO_CACHE" -ForegroundColor White
 Write-Host "  - Target cache: $env:VOLUME_TARGET_CACHE" -ForegroundColor White
 Write-Host "  - Local MongoDB init script: $ScriptDir\01-init-db.js" -ForegroundColor White
+Write-Host "" -ForegroundColor Yellow
+Write-Host "PRESERVED (never deleted):" -ForegroundColor Green
+Write-Host "  - Claude history: $env:VOLUME_CLAUDE_CONFIG" -ForegroundColor White
+Write-Host "  - QMD GGUF models: $env:VOLUME_QMD_MODELS (~2GB, shared across projects)" -ForegroundColor White
 Write-Host ""
 Write-Host "THIS CANNOT BE UNDONE!" -ForegroundColor Red
 Write-Host ""

@@ -2,9 +2,9 @@
 
 **Complete containerized Rust development environment with MongoDB**
 
-**Current Version:** v0.6.10
-**Base Image:** `tsouche/base_rust_dev:v0.6.10`  
-**Last Updated:** February 9, 2026
+**Current Version:** v0.6.13
+**Base Image:** `tsouche/base_rust_dev:v0.6.13`  
+**Last Updated:** February 10, 2026
 
 *For version history and changelog, see [CHANGELOG.md](CHANGELOG.md)*
 
@@ -527,9 +527,9 @@ git clone https://github.com/your-username/your-project.git
 - 🚀 **5-10x faster `cargo build`** times
 - ✨ **Instant rust-analyzer** responses (no lag)
 - 📂 **Reliable file watchers** (cargo watch, nodemon work perfectly)
-- 💾 **Persistent via named volume** (`rustdev_home`) - survives rebuilds
+- 💾 **Persistent via named volume** (`rustdev_${PROJECT_NAME}`) - survives rebuilds
 
-**Data safety:** Your home directory is backed by a Docker named volume, so projects persist across container rebuilds. Just **push to git frequently** for ultimate safety.
+**Data safety:** Your home directory is backed by a per-project Docker named volume, so projects persist across container rebuilds. Just **push to git frequently** for ultimate safety.
 
 #### Smart Auto-Detection ✨ NEW in v0.6.10
 
@@ -542,9 +542,18 @@ git clone https://github.com/your-username/your-project.git
 
 1. **✅ During Deployment** - `deploy-dev.ps1` runs QMD initialization after deployment
 2. **✅ On First Shell Login** - `.bashrc` detects uninitialized QMD and runs `init_qmd.sh`
-3. **✅ VS Code Connection** - `devcontainer.json` postStartCommand triggers on Remote-SSH
+3. **✅ Periodic Repository Scanning** - Every hour, `.bashrc` checks for new git repositories and auto-indexes them
+4. **✅ VS Code Connection** - `devcontainer.json` postStartCommand triggers on Remote-SSH
 
-**Result: Clone anywhere, QMD indexes automatically!** 🎉
+**Result: Clone anywhere, QMD indexes automatically and configures Claude Code!** 🎉
+
+#### Automatic Claude Code Integration
+
+QMD initialization automatically configures Claude Code to use QMD for code searches:
+
+- **Project Configuration**: Updates `.claude.json` with QMD contexts (`qmd://project_name`)
+- **MCP Context URIs**: Adds `mcpContextUris` to project settings for seamless integration
+- **No Manual Setup**: Claude Code immediately uses QMD for intelligent code searches
 
 #### Manual Re-indexing (Optional)
 
@@ -584,9 +593,13 @@ qmd-reindex
 
 **Persistence:**
 
-- ✅ **GGUF models**: Cached in `C:/rustdev/docker/qmd_cache` - **never re-download**
-- ✅ **Index database**: Persists in `~/.cache/qmd` (named volume)
-- ✅ **Your projects**: Persist in `rustdev_home` named volume
+- ✅ **GGUF models**: Cached in `C:/rustdev/docker/qmd_models` (Windows bind mount)
+  - Downloaded once, shared across ALL projects - **never re-download**
+- ✅ **Index database**: Persists in `~/.cache/qmd` (in per-project home volume: `rustdev_${PROJECT_NAME}`)
+  - Clean separation between projects via home volume
+- ✅ **Claude history**: Cached in `C:/rustdev/claude_config` (Windows bind mount)
+  - ETERNAL persistence across all projects
+- ✅ **Your projects**: Persist in `rustdev_${PROJECT_NAME}` named volume (per-project)
 - ✅ **Collections**: Auto-update when you run `qmd-reindex`
 
 #### Daily Usage
@@ -639,7 +652,7 @@ qmd vsearch "similar login patterns"
 **Models downloading slowly**
 
 - First deployment downloads ~2GB of GGUF models (one-time)
-- Cached in `C:/rustdev/docker/qmd_cache` (persists forever)
+- Cached in `C:/rustdev/docker/qmd_models` (persists forever, shared across all projects)
 - Subsequent deployments reuse cached models
 
 **"No projects found" during initialization**

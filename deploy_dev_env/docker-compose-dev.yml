@@ -1,9 +1,8 @@
-# Docker Compose for Development Environment - v0.6.9
-# Uses pre-built base image tsouche/base_rust_dev:latest
+# Docker Compose for Development Environment - v0.6.13
+# Uses pre-built base image tsouche/base_rust_dev:latest (v0.6.13+)
 # Local laptop deployment with SSH and debugging tools
 # Docker CLI available inside dev container - binaries copied via docker cp
-
-version: '3.8'
+# QMD index at ~/.cache/qmd/ (per-project via home volume)
 
 services:
   # Development Container
@@ -35,15 +34,25 @@ services:
       - RUST_LOG=${RUST_LOG:-debug}
     
     volumes:
+      # Claude history - ETERNAL PERSISTENCE (survives all cleanups)
       - ${VOLUME_CLAUDE_CONFIG}:/home/rustdev/.claude
+      
+      # QMD - Split Architecture (Option C)
+      # GGUF Models (~2GB) - Shared across ALL projects, downloaded once
+      - ${VOLUME_QMD_MODELS:-C:/rustdev/docker/qmd_models}:/home/rustdev/.cache/qmd/models
+      # Note: QMD index (index.sqlite) lives in home directory at ~/.cache/qmd/
+      #       It's automatically per-project via the rustdev_${PROJECT_NAME} mount below
+      
+      # Project workspace
       - ${PROJECT_PATH}:/workspace
       - ${VOLUME_TARGET_CACHE}:/workspace/target
+      
       # Docker socket for container management from inside dev container
       - /var/run/docker.sock:/var/run/docker.sock
-      # QMD cache volume (for GGUF models and index)
-      - ${VOLUME_QMD_CACHE:-./volumes/qmd_cache}:/home/rustdev/.cache/qmd
-      # Persistent home directory for container-local development (performance)
-      - ${VOLUME_RUSTDEV_HOME:-rustdev_home}:/home/rustdev
+      
+      # Persistent home directory - Per-project named volume (performance + clean slate)
+      # This includes QMD index at ~/.cache/qmd/index.sqlite (per-project separation)
+      - ${VOLUME_RUSTDEV_HOME_PREFIX:-rustdev}_${PROJECT_NAME:-default}:/home/rustdev
     
     networks:
       - ${NETWORK_NAME:-dev-network}
@@ -101,9 +110,12 @@ services:
         ipv4_address: 172.20.0.12
 
 # Named volumes for performance-critical data
+# Note: For different projects, update volume names in this section
 volumes:
-  rustdev_home:
-    name: ${VOLUME_RUSTDEV_HOME:-rustdev_home}
+  qmd_index_set_backend:
+    name: qmd_index_set_backend
+  rustdev_set_backend:
+    name: rustdev_set_backend
 
 networks:
   dev-network:

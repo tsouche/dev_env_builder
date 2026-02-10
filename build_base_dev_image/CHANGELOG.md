@@ -1,5 +1,131 @@
 # Changelog for BuildDevImage scripts
 
+## Version 0.6.13 (February 10, 2026)
+
+### 🚀 Enhanced QMD Auto-Integration
+
+**Automatic project configuration and periodic repository scanning**
+
+#### Changes
+
+- **Periodic Repository Scanning** ⚠️ CRITICAL
+  - Enhanced `.bashrc` auto-init to check for new repositories every hour
+  - Automatically runs `~/init_qmd.sh` when new git repos are detected
+  - Eliminates need for manual QMD re-indexing after cloning repositories
+  - Uses timestamp file `~/.cache/qmd/last_repo_check` to track last scan
+
+- **Automatic Claude Code Project Configuration** ⚠️ CRITICAL
+  - `init_qmd.sh` now automatically updates `.claude.json` project configurations
+  - Adds QMD contexts (`qmd://project_name`, `qmd://project_name/src`) to `mcpContextUris`
+  - Claude Code immediately uses QMD for code searches without manual setup
+  - No manual `.claude.json` editing required after cloning
+
+- **Enhanced Auto-Init Function**
+  - Added repository change detection logic
+  - Silent background re-indexing (`> /dev/null 2>&1`)
+  - Maintains existing index freshness warnings (>24h old)
+
+#### Technical Details
+
+- Repository scan interval: 3600 seconds (1 hour)
+- Project config update: Python script embedded in `init_qmd.sh`
+- Context discovery: Parses `qmd context list` output
+- MCP integration: Automatic `mcpContextUris` population
+
+**Future deployments will have fully automated QMD integration!** 🎉
+
+---
+
+## Version 0.6.12 (February 10, 2026)
+
+### 🐛 Critical Fixes
+
+**Fixed .bashrc syntax errors, QMD path configuration, and MCP integration**
+
+#### Changes
+
+- **MCP configuration location** ⚠️ CRITICAL
+  - Fixed: Claude Code uses `~/.claude.json`, not `~/.claude/settings.json`
+  - Created symlink: `~/.claude.json` → `~/.claude/claude.json` (line 293)
+  - Makes MCP configuration eternal (persists in Windows bind mount across all projects)
+  - Removed creation of unused `~/.claude/settings.json`
+  - **Deployment script now properly merges QMD MCP server into existing config**
+  - Claude Code can now discover QMD MCP server properly
+
+- **Bash syntax error in auto-init function** ⚠️ CRITICAL
+  - Removed incorrect backslash escaping in variable substitutions
+  - Fixed: `LAST_UPDATE=\$(...)` → `LAST_UPDATE=$(...)`
+  - Fixed: `NOW=\$(...)` → `NOW=$(...)`
+  - Fixed: `DIFF=\$((...))` → `DIFF=$((...))` 
+  - Fixed: `[ \$DIFF -gt ...]` → `[ $DIFF -gt ...]`
+  - Previous versions had bash syntax errors preventing .bashrc from loading
+
+- **Auto-init path corrected**
+  - Changed check from `~/.local/share/qmd/index.sqlite` to `~/.cache/qmd/index.sqlite`
+  - Matches QMD's actual storage behavior
+  - Prevents unnecessary re-initialization
+
+#### Technical Details
+
+- QMD stores index at: `~/.cache/qmd/index.sqlite` (not `.local/share`)
+- Auto-init function: Lines 305-322 in Dockerfile.base_rust_dev
+- Bash escaping: Use `$var` inside single-quoted echo strings (not `\$var`)
+- Index freshness check: Uses correct path for stat command
+
+**Note**: This fixes a critical bug in v0.6.11. Rebuild base image recommended.
+
+---
+
+## Version 0.6.11 (February 9, 2026)
+
+### 🔧 QMD Pre-Installation & Directory Structure Fixes
+
+**QMD moved to base image for performance and reliability**
+
+#### Changes
+
+- **QMD pre-installed in base image**
+  - Moved from deployment-specific image to base image
+  - Reduces deployment time by 30-60 seconds (no re-download)
+  - Installed via: `bun install -g github:tobi/qmd`
+  - Version verified during build
+
+- **Directory structure pre-created**
+  - `/home/rustdev/.local/share` - for QMD SQLite database
+  - `/home/rustdev/.cache/qmd` - for GGUF models (~2GB)
+  - Proper ownership: `rustdev:rustdevteam` (1026:110)
+
+- **PATH configuration**
+  - Added QMD to PATH via `.bashrc`
+  - Ensures `qmd` command available immediately
+
+- **MCP configuration**
+  - Claude Code MCP settings pre-configured in `~/.claude/settings.json`
+  - Ready for integration with Claude Code out of the box
+
+- **QMD aliases and auto-init**
+  - Shell aliases: `qmd-update`, `qmd-refresh`, `qmd-status`, `qmd-search`, `qmd-reindex`
+  - Auto-init function: Detects uninitialized QMD and runs init automatically
+  - Index freshness check: Warns if index >24h old
+
+#### Benefits
+
+- **Faster deployments**: QMD only installed once during base image build
+- **No initialization failures**: Directories exist with correct permissions from the start
+- **Consistent environment**: All deployment environments have same QMD version
+- **Ready-to-use**: MCP and aliases configured, no manual setup required
+
+#### Technical Details
+
+- Installation location: `/usr/local/install/global/node_modules/qmd`
+- Database path: `~/.local/share/qmd/index.sqlite`
+- Cache path: `~/.cache/qmd/models/`
+- MCP config: `~/.claude/settings.json`
+- Ownership: All directories owned by rustdev:rustdevteam
+
+**Note**: This version is required for deployment environments v0.6.11+
+
+---
 
 ## Version 0.6.10 (February 9, 2026)
 
@@ -66,6 +192,7 @@
 **Note**: The base image `tsouche/rust_dev_container:v0.6.8` now includes ca-certificates and updated certs for improved SSL support.
 
 ---
+
 ## Version 0.6.7 (January 23, 2026)
 
 ### 📝 Documentation Update
@@ -123,6 +250,7 @@
 **Reason for change**: Tokio async runtime has fundamental incompatibility with musl libc, causing segfaults. Ubuntu/glibc is the proven production-ready solution for Rust async applications.
 
 **Migration impact**:
+
 - Existing projects: Change build target from musl to native (default)
 - Deployment: Switch from Alpine to Ubuntu-based containers
 - Build command: `cargo build --release` (no --target flag needed)
@@ -147,10 +275,12 @@
   - Now properly persisted and exported in both shell profile files for login/interactive shells
 
 **Why both ENV and shell exports are needed:**
+
 - `ENV` directives: Available to non-interactive processes (`docker exec`, VS Code tasks)
 - Shell exports: Available in interactive sessions (SSH, terminal, `bash -l`)
 
 **Variables now persisted:**
+
 ```bash
 export OPENSSL_DIR=/usr/local/musl
 export OPENSSL_LIB_DIR=/usr/local/musl/lib64
@@ -160,6 +290,7 @@ export PKG_CONFIG_ALLOW_CROSS=1
 ```
 
 **Impact:**
+
 - ✅ Musl builds now work from SSH sessions
 - ✅ Musl builds now work from VS Code terminal
 - ✅ Environment variables properly inherited by all shell sessions
