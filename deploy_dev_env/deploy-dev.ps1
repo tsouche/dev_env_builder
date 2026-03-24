@@ -1,5 +1,5 @@
 ################################################################################
-# Development Environment Deployment Script - v0.7.0 (PowerShell)
+# Development Environment Deployment Script - v0.7.1 (PowerShell)
 # Deploys to local development laptop
 ################################################################################
 
@@ -686,6 +686,33 @@ try {
 } catch {
     Write-Warning-Custom "gstack initialization encountered an issue: $_"
     Write-Host "   Run manually inside container: ~/init_gstack.sh" -ForegroundColor Yellow
+}
+
+Write-Host ""
+
+################################################################################
+# Run Deployment Test Suite
+################################################################################
+
+Write-Header "Running Deployment Test Suite"
+
+Write-Host "Copying test script to container..." -ForegroundColor Yellow
+docker cp "$ScriptDir\test-deployment.sh" "$($env:CONTAINER_NAME):/home/rustdev/test-deployment.sh" | Out-Null
+docker exec -u root $env:CONTAINER_NAME chmod +x /home/rustdev/test-deployment.sh
+
+Write-Host "Running tests inside container..." -ForegroundColor Yellow
+Write-Host ""
+
+# Run the test suite as rustdev user; stream output directly to the console
+docker exec -u rustdev $env:CONTAINER_NAME bash /home/rustdev/test-deployment.sh
+$testExitCode = $LASTEXITCODE
+
+Write-Host ""
+if ($testExitCode -eq 0) {
+    Write-Success "Test suite passed — environment is healthy"
+} else {
+    Write-Host "[WARNING] One or more critical tests failed — review output above" -ForegroundColor Red
+    Write-Host "          The environment has been deployed but may not be fully functional." -ForegroundColor Yellow
 }
 
 Write-Host ""

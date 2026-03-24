@@ -1,5 +1,5 @@
-# Docker Compose for Development Environment - v0.7.0
-# Uses pre-built base image tsouche/base_rust_dev:latest (v0.7.0+)
+# Docker Compose for Development Environment - v0.7.1
+# Uses pre-built base image tsouche/base_rust_dev:latest (v0.7.1+)
 # Local laptop deployment with SSH and debugging tools
 # Docker CLI available inside dev container - binaries copied via docker cp
 # QMD index at ~/.cache/qmd/ (per-project via home volume)
