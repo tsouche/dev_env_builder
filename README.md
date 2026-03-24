@@ -60,19 +60,24 @@ This project was made possible with the assistance of **Claude Sonnet 4.5** by A
 
 ---
 
-**Current Version:** v0.6.13  
-**Last Updated:** February 9, 2026
+**Current Version:** v0.7.0  
+**Last Updated:** March 24, 2026
 
-**Key Features (v0.6.10):**
+**Key Features (v0.7.0):**
 
 - ✅ Native glibc compilation for Ubuntu-based deployments
 - ✅ Docker CLI with proper socket permissions
 - ✅ Streamlined 3-container architecture (dev, MongoDB, Mongo Express)
 - ✅ **Bun runtime** integrated in base image for QMD support
+- ✅ **Playwright + Chromium** pre-installed for headless browsing
 
 **AI-Assisted Development:**
 
 - ✅ **Claude Code CLI** - Latest version installed globally
+- ✅ **gstack Skills Framework** - 28 slash-command skills for Claude Code
+  - Virtual engineering team: CEO, Designer, Eng Manager, QA, Release Engineer
+  - Key skills: /office-hours, /review, /qa, /browse, /ship, /investigate
+  - Global install in persistent volume — works across all projects
 - ✅ **QMD (Query Markup Documents)** - AI-optimized code indexing
   - 60-80% reduction in Claude token usage
   - Semantic search with BM25 + vector embeddings

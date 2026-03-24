@@ -1,5 +1,28 @@
 # Changelog for BuildDevImage scripts
 
+## Version 0.7.0 (March 24, 2026)
+
+### 🌐 Playwright/Chromium for gstack /browse
+
+**Pre-installed headless browser for AI-driven web browsing skills**
+
+#### Changes
+
+- **Playwright + Chromium pre-installed in base image**
+  - System-level browser dependencies (libgbm1, libnss3, libatk-bridge2.0-0, etc.)
+  - Chromium installed via `bunx playwright install chromium`
+  - Enables gstack's `/browse` skill to work out-of-the-box
+  - No first-use download delay — browser ready immediately
+
+#### Technical Details
+
+- Playwright installed via Bun (bunx)
+- Chromium binary cached at system level
+- ~200MB added to base image size
+- Required by: gstack `/browse`, `/qa`, `/qa-only`, `/benchmark`, `/canary` skills
+
+---
+
 ## Version 0.6.13 (February 10, 2026)
 
 ### 🚀 Enhanced QMD Auto-Integration

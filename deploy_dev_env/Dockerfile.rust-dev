@@ -1,6 +1,6 @@
 ################################################################################
-# SET Backend Development Environment - v0.6.13
-# Base: tsouche/base_rust_dev:latest (v0.6.13+)
+# SET Backend Development Environment - v0.7.0
+# Base: tsouche/base_rust_dev:latest (v0.7.0+)
 # 
 # The base image already provides:
 # - Ubuntu 22.04 LTS
@@ -9,6 +9,7 @@
 # - MongoDB Shell (mongosh)
 # - GitHub CLI (gh)
 # - Bun runtime (for QMD support)
+# - Playwright + Chromium (for gstack /browse skill)
 # - QMD (Query Markup Documents) pre-installed globally
 # - QMD aliases (qmd-update, qmd-refresh, qmd-status, qmd-search, qmd-reindex)
 # - QMD auto-init function in .bashrc (checks ~/.cache/qmd/index.sqlite)
@@ -73,6 +74,19 @@ RUN chmod +x /home/rustdev/init_qmd.sh && \
 # Copy global CLAUDE.md template to .claude directory (deployment-specific)
 COPY CLAUDE.md.template /home/rustdev/.claude/CLAUDE.md
 RUN chown 1026:110 /home/rustdev/.claude/CLAUDE.md
+
+################################################################################
+# gstack - Claude Code Skills Framework
+# NOTE: gstack is installed at runtime into the persistent ~/.claude volume
+#       via init_gstack.sh (not baked into the image).
+#       This section only copies the initialization script.
+################################################################################
+
+# Copy gstack initialization script (deployment-specific)
+USER root
+COPY init_gstack.sh /home/rustdev/init_gstack.sh
+RUN chmod +x /home/rustdev/init_gstack.sh && \
+    chown 1026:110 /home/rustdev/init_gstack.sh
 
 USER root
 WORKDIR /workspace

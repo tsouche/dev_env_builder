@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.7.0] - 2026-03-24
+
+### Added
+
+- **gstack Skills Framework Integration**
+  - New `init_gstack.sh` initialization script (idempotent)
+  - Clones gstack to persistent `~/.claude/skills/gstack` on first deploy
+  - Updates to latest on subsequent deploys
+  - Runs `./setup` automatically, configures telemetry off
+  - Builds `/browse` dependencies (bun install + bun run build)
+  - Deployment script (`deploy-dev.ps1`) runs init_gstack.sh automatically
+
+- **CLAUDE.md template updated**
+  - Added gstack section listing all 28 available skills
+  - `/browse` configured as default web browsing tool
+
+- **Playwright + Chromium in base image** (v0.7.0+)
+  - Required for gstack `/browse`, `/qa`, `/qa-only`, `/benchmark`, `/canary` skills
+  - Pre-installed system dependencies and Chromium binary
+
+---
+
 ## [0.6.13] - 2026-02-10
 
 ### Added

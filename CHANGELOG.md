@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] - 2026-03-24
+
+### Added
+
+- **gstack Skills Framework** - Garry Tan's Claude Code virtual engineering team
+  - 28 slash-command skills: /office-hours, /review, /qa, /browse, /ship, etc.
+  - Global install in persistent `~/.claude/skills/gstack` volume
+  - Idempotent init script (`init_gstack.sh`) — safe to re-run
+  - Self-updating via `/gstack-upgrade` or redeployment
+  - Telemetry off by default
+  - CLAUDE.md template updated with gstack skill listing
+
+- **Playwright + Chromium in base image**
+  - Headless browser pre-installed for gstack `/browse`, `/qa`, `/benchmark` skills
+  - System-level Chromium dependencies (libgbm1, libnss3, libatk-bridge2.0-0, etc.)
+  - No first-use download delay
+
+---
+
 ## [0.6.9] - 2026-02-01
 
 ### Changed - Deploy Environment

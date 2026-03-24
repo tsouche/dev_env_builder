@@ -1,11 +1,10 @@
 ################################################################################
-# Rust Development Environment - Version 0.6.10
+# Rust Development Environment - Version 0.7.0
 # Shared Dockerfile for all environments (dev, test, prod)
 # 
-# Changes in v0.6.10:
-# - Added Bun runtime (required for QMD - Query Markup Documents)
-# - Enables AI-optimized code indexing in deployment environments
-# - System-wide installation in /usr/local for all users
+# Changes in v0.7.0:
+# - Added Playwright with Chromium (required for gstack /browse skill)
+# - System-level browser dependencies for headless browsing
 # 
 ################################################################################
 FROM ubuntu:22.04
@@ -56,6 +55,33 @@ RUN curl -fsSL https://bun.sh/install | bash
 RUN bun --version
 
 ENV PATH="${BUN_INSTALL}/bin:${PATH}"
+
+################################################################################
+# Install Playwright with Chromium (Required for gstack /browse skill)
+################################################################################
+# Install system dependencies required by Chromium/Playwright
+RUN apt-get update && apt-get install -y \
+    libgbm1 \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2 \
+    libatspi2.0-0 \
+    libwayland-client0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Playwright Chromium browser using Bun
+RUN bunx playwright install chromium
 
 ################################################################################
 # Install MongoDB Shell (mongosh)
