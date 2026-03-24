@@ -1,6 +1,11 @@
 ################################################################################
-# Rust Development Environment - Version 0.7.0
+# Rust Development Environment - Version 0.7.1
 # Shared Dockerfile for all environments (dev, test, prod)
+# 
+# Changes in v0.7.1:
+# - Upgraded Node.js from 20 to 22 (required by QMD engine constraint >=22)
+# - Fixed QMD installation: switched from bun+GitHub source to npm registry
+#   (npm package includes pre-built dist/; no bun.lock -> wrapper uses node)
 # 
 # Changes in v0.7.0:
 # - Added Playwright with Chromium (required for gstack /browse skill)
@@ -39,7 +44,7 @@ RUN update-ca-certificates
 ################################################################################
 # Install Node.js (Runtime for Claude Code & Tooling)
 ################################################################################
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g npm@latest
 
@@ -295,8 +300,8 @@ RUN echo '' >> /home/${USERNAME}/.bashrc && \
 ################################################################################
 USER root
 
-# Install QMD globally using Bun (requires root for global installation)
-RUN bun install -g github:tobi/qmd
+# Install QMD globally using npm (npm registry has pre-built dist/; no bun.lock -> wrapper uses node)
+RUN npm install -g @tobilu/qmd
 
 # Verify QMD installation
 RUN qmd --version || echo "QMD installed, waiting for first use to download models"
