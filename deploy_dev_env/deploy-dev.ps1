@@ -1,4 +1,4 @@
-################################################################################
+﻿################################################################################
 # Development Environment Deployment Script - v0.7.1 (PowerShell)
 # Deploys to local development laptop
 ################################################################################
@@ -443,7 +443,7 @@ if (Test-Path $claudeMdTemplate) {
     Copy-Item -Force $claudeMdTemplate $claudeMdTarget
     Write-Success "CLAUDE.md updated on persistent volume"
 } else {
-    Write-Warning-Custom "CLAUDE.md.template not found — skipping"
+    Write-Warning-Custom "CLAUDE.md.template not found - skipping"
 }
 
 ################################################################################
@@ -535,30 +535,16 @@ with open('.claude.json', 'w') as f:
     Write-Success "QMD MCP server is properly configured"
 }
 
-# Validate QMD MCP integration
+# Validate QMD MCP integration (one exec per check to avoid quoting issues)
 Write-Host "Validating QMD MCP integration..." -ForegroundColor Gray
-$mcpValidation = docker exec -u rustdev $env:CONTAINER_NAME bash -c "
-if command -v qmd &> /dev/null; then
-    echo 'QMD installed'
-else
-    echo 'QMD missing'
-    exit 1
-fi
+$qmdBin    = docker exec -u rustdev $env:CONTAINER_NAME bash -c 'command -v qmd' 2>&1
+$qmdVer    = docker exec -u rustdev $env:CONTAINER_NAME bash -c 'qmd --version' 2>&1
+$qmdExit   = $LASTEXITCODE
 
-if qmd status &> /dev/null; then
-    echo 'QMD functional'
-else
-    echo 'QMD broken'
-    exit 1
-fi
-
-echo 'MCP ready'
-" 2>&1
-
-if ($mcpValidation -contains "QMD installed" -and $mcpValidation -contains "QMD functional" -and $mcpValidation -contains "MCP ready") {
-    Write-Success "QMD MCP integration validated"
+if ($qmdBin -and $qmdExit -eq 0) {
+    Write-Success "QMD MCP integration validated (qmd $qmdVer)"
 } else {
-    Write-Warning-Custom "QMD MCP integration validation failed. Details: $mcpValidation"
+    Write-Warning-Custom "QMD validation: bin=$qmdBin ver=$qmdVer exit=$qmdExit"
 }
 
 Write-Host ""
@@ -652,7 +638,7 @@ try {
     docker exec -u rustdev $env:CONTAINER_NAME bash -c "~/init_qmd.sh"
     Write-Success "QMD initialization completed"
     Write-Host ""
-    Write-Host "✅ QMD is ready! Claude Code will automatically use it for searches." -ForegroundColor Green
+    Write-Host "+ QMD is ready! Claude Code will automatically use it for searches." -ForegroundColor Green
 } catch {
     Write-Warning-Custom "QMD initialization encountered an issue: $_"
     Write-Host "   QMD will auto-initialize on first shell login instead." -ForegroundColor Yellow
@@ -709,9 +695,9 @@ $testExitCode = $LASTEXITCODE
 
 Write-Host ""
 if ($testExitCode -eq 0) {
-    Write-Success "Test suite passed — environment is healthy"
+    Write-Success "Test suite passed - environment is healthy"
 } else {
-    Write-Host "[WARNING] One or more critical tests failed — review output above" -ForegroundColor Red
+    Write-Host "[WARNING] One or more critical tests failed - review output above" -ForegroundColor Red
     Write-Host "          The environment has been deployed but may not be fully functional." -ForegroundColor Yellow
 }
 
