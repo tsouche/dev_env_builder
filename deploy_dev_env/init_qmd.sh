@@ -1,202 +1,229 @@
 #!/bin/bash
 ################################################################################
 # QMD Initialization Script
-# Run this after first container deployment to set up QMD indexing
-# This script is idempotent - safe to run multiple times
+# Run this after first container deployment (or after cloning a new repo).
+# Sets up a per-repo QMD index for every git repository found in ~/ or /workspace.
+#
+# Per-repo layout (created for each project):
+#   {repo}/.qmd/index.sqlite          — DB lives IN the repo (git-ignored)
+#   ~/.cache/qmd/{name}.sqlite        — symlink → repo DB (for qmd --index discovery)
+#   ~/.config/qmd/{name}.yml          — named-index config (db path)
+#   {repo}/.mcp.json                  — Claude Code project-level MCP override
+#   ~/.bashrc alias: qmd-{name}       — shorthand for 'qmd --index {name}'
+#
+# This script is fully idempotent — safe to re-run after pulling new docs.
 ################################################################################
 
-set -e
+set -euo pipefail
 
 echo "========================================="
-echo "QMD Initialization"
+echo "QMD Initialization (per-repo mode)"
 echo "========================================="
 
 # Check if QMD is installed
 if ! command -v qmd &> /dev/null; then
-    echo "❌ QMD not found. Please rebuild the container."
+    echo "ERROR: QMD not found. Please rebuild the container."
     exit 1
 fi
+echo "  QMD is installed: $(qmd --version 2>/dev/null || echo 'ok')"
 
-echo "✓ QMD is installed"
-
-# Auto-detect and index git repositories
-echo ""
-echo "Scanning for projects..."
+################################################################################
+# Per-repo setup function
+################################################################################
 
 PROJECTS_FOUND=0
+ALIASES_ADDED=()
 
-# Function to index a directory
-index_project() {
+setup_project_qmd() {
     local project_dir="$1"
     local project_name="$2"
-    
+
     echo ""
-    echo "Found: $project_name at $project_dir"
-    
-    # Check if collection already exists
-    if qmd collection list 2>/dev/null | grep -q "^$project_name$"; then
-        echo "  → Collection already exists, updating..."
-        cd "$project_dir"
-        qmd update
-        echo "  ✓ Updated"
-    else
-        echo "  → Creating new collection..."
-        cd "$project_dir"
-        qmd collection add . --name "$project_name" --mask "**/*.{rs,md,toml,json,yaml,yml,sh,py,js,ts,jsx,tsx,go,c,cpp,h,hpp}"
-        echo "  ✓ Created"
+    echo "--- $project_name ($project_dir) ---"
+
+    # 1. Create .qmd directory inside the repo
+    mkdir -p "$project_dir/.qmd"
+
+    # 2. Add .qmd/*.sqlite* to repo .gitignore (idempotent)
+    local gitignore="$project_dir/.gitignore"
+    if ! grep -qF ".qmd/*.sqlite" "$gitignore" 2>/dev/null; then
+        {
+            echo ""
+            echo "# QMD per-repo index (local only, not pushed to git)"
+            echo ".qmd/*.sqlite*"
+        } >> "$gitignore"
+        echo "  .gitignore updated: .qmd/*.sqlite* ignored"
     fi
-    
-    # Add context
-    qmd context add "qmd://$project_name" "Project: $project_name"
-    [ -d "$project_dir/src" ] && qmd context add "qmd://$project_name/src" "Source code"
-    [ -d "$project_dir/docs" ] && qmd context add "qmd://$project_name/docs" "Documentation"
-    [ -d "$project_dir/tests" ] && qmd context add "qmd://$project_name/tests" "Tests"
-    
+
+    # 3. Create symlink ~/.cache/qmd/{name}.sqlite → {repo}/.qmd/index.sqlite
+    #    This allows 'qmd --index {name}' to locate the DB automatically.
+    mkdir -p "$HOME/.cache/qmd"
+    local db_path="$project_dir/.qmd/index.sqlite"
+    local symlink_path="$HOME/.cache/qmd/${project_name}.sqlite"
+    # Recreate symlink if missing or pointing elsewhere
+    if [ ! -L "$symlink_path" ] || [ "$(readlink "$symlink_path")" != "$db_path" ]; then
+        ln -sf "$db_path" "$symlink_path"
+        echo "  Symlink: ~/.cache/qmd/${project_name}.sqlite -> $db_path"
+    fi
+
+    # 4. Create ~/.config/qmd/{name}.yml (named-index config)
+    mkdir -p "$HOME/.config/qmd"
+    local config_path="$HOME/.config/qmd/${project_name}.yml"
+    cat > "$config_path" << YMLEOF
+db: ${db_path}
+YMLEOF
+    echo "  Config:  ~/.config/qmd/${project_name}.yml"
+
+    # 5. Index the project with per-repo --index flag
+    cd "$project_dir"
+    if qmd --index "$project_name" status 2>/dev/null | grep -qiE "collection|document|chunk"; then
+        echo "  Updating existing index..."
+        qmd --index "$project_name" update
+    else
+        echo "  Creating new index..."
+        qmd --index "$project_name" collection add . \
+            --name "$project_name" \
+            --mask "**/*.{rs,md,toml,json,yaml,yml,sh,py,js,ts,jsx,tsx,go,c,cpp,h,hpp}"
+    fi
+    echo "  Indexed."
+
+    # 6. Create/update {repo}/.mcp.json for Claude Code project-level MCP override
+    #    When Claude Code opens this project, it will use qmd --index {name} mcp
+    #    automatically, scoping all QMD searches to THIS project's index.
+    cat > "$project_dir/.mcp.json" << MCPEOF
+{
+  "mcpServers": {
+    "qmd": {
+      "command": "qmd",
+      "args": ["--index", "${project_name}", "mcp"]
+    }
+  }
+}
+MCPEOF
+    echo "  .mcp.json: qmd --index ${project_name} mcp"
+
+    ALIASES_ADDED+=("alias qmd-${project_name}='qmd --index ${project_name}'")
     PROJECTS_FOUND=$((PROJECTS_FOUND + 1))
 }
 
-# Scan home directory for git repositories
-for dir in ~/*/.git; do
-    if [ -d "$dir" ]; then
-        project_dir=$(dirname "$dir")
-        project_name=$(basename "$project_dir")
-        index_project "$project_dir" "$project_name"
+################################################################################
+# Scan for git repositories
+################################################################################
+
+echo ""
+echo "Scanning for git repositories..."
+
+# Home directory repos
+for dir in "$HOME"/*/; do
+    if [ -d "${dir}.git" ]; then
+        project_name=$(basename "$dir")
+        setup_project_qmd "$dir" "$project_name"
     fi
 done
 
-# Scan /workspace for git repositories
-if [ -d "/workspace" ]; then
-    for dir in /workspace/*/.git; do
-        if [ -d "$dir" ]; then
-            project_dir=$(dirname "$dir")
-            project_name=$(basename "$project_dir")
-            index_project "$project_dir" "$project_name"
+# /workspace (single repo or parent of repos)
+if [ -d "/workspace/.git" ]; then
+    setup_project_qmd "/workspace" "workspace"
+elif [ -d "/workspace" ]; then
+    for dir in /workspace/*/; do
+        if [ -d "${dir}.git" ]; then
+            project_name=$(basename "$dir")
+            setup_project_qmd "$dir" "$project_name"
         fi
     done
-    
-    # Also check if /workspace itself is a git repo
-    if [ -d "/workspace/.git" ]; then
-        index_project "/workspace" "workspace"
-    fi
 fi
 
-if [ $PROJECTS_FOUND -eq 0 ]; then
-    echo "⚠️  No git repositories found in ~/ or /workspace"
-    echo "    Clone a project and run this script again"
-else
+if [ "$PROJECTS_FOUND" -eq 0 ]; then
     echo ""
-    echo "✓ Indexed $PROJECTS_FOUND project(s)"
-    
-    # Update Claude Code project configuration to use QMD contexts
+    echo "WARNING: No git repositories found in ~/ or /workspace."
+    echo "  Clone a project, then re-run: ~/init_qmd.sh"
+    exit 0
+fi
+
+echo ""
+echo "Found $PROJECTS_FOUND project(s)."
+
+################################################################################
+# Write per-project aliases to ~/.bashrc (idempotent)
+################################################################################
+
+echo ""
+echo "Writing per-project aliases to ~/.bashrc..."
+
+MARKER="# QMD per-project aliases — managed by init_qmd.sh"
+
+# Remove any previously generated aliases block
+if grep -qF "$MARKER" ~/.bashrc 2>/dev/null; then
+    # Delete from marker line to the next blank line (inclusive)
+    sed -i "/$MARKER/,/^$/d" ~/.bashrc
+fi
+
+{
     echo ""
-    echo "Configuring Claude Code to use QMD for code searches..."
-    
-    python3 -c "
-import json
-import os
+    echo "$MARKER"
+    for alias_line in "${ALIASES_ADDED[@]}"; do
+        echo "$alias_line"
+    done
+    echo ""
+} >> ~/.bashrc
 
-# Read current configuration
-config_file = os.path.expanduser('~/.claude.json')
-if os.path.exists(config_file):
-    with open(config_file, 'r') as f:
-        try:
-            data = json.load(f)
-        except json.JSONDecodeError:
-            print('Warning: Could not parse .claude.json, skipping project config update')
-            exit(0)
-else:
-    print('Warning: .claude.json not found, skipping project config update')
-    exit(0)
+echo "  Aliases written (activate with: source ~/.bashrc)"
 
-# Get list of QMD contexts
-import subprocess
-try:
-    result = subprocess.run(['qmd', 'context', 'list'], capture_output=True, text=True, timeout=10)
-    if result.returncode == 0:
-        contexts_output = result.stdout
-        # Parse contexts - look for lines like 'set_backend' and '  src'
-        contexts = []
-        current_project = None
-        for line in contexts_output.split('\n'):
-            line = line.strip()
-            if line and not line.startswith(' ') and line != 'Configured Contexts':
-                current_project = line
-                contexts.append(f'qmd://{current_project}')
-            elif line.startswith(' ') and current_project and line.strip():
-                context_name = line.strip().split()[0]
-                if context_name != '/':
-                    contexts.append(f'qmd://{current_project}/{context_name}')
-        
-        # Update project configurations
-        projects_updated = 0
-        for project_path in ['/workspace', '/home/rustdev/set_backend']:
-            if os.path.exists(project_path):
-                if 'projects' not in data:
-                    data['projects'] = {}
-                if project_path not in data['projects']:
-                    data['projects'][project_path] = {}
-                
-                # Add QMD contexts to this project
-                project_contexts = [ctx for ctx in contexts if project_path.split('/')[-1] in ctx]
-                if project_contexts:
-                    data['projects'][project_path]['mcpContextUris'] = project_contexts
-                    projects_updated += 1
-        
-        # Save updated configuration
-        if projects_updated > 0:
-            with open(config_file, 'w') as f:
-                json.dump(data, f, indent=2)
-            print(f'✓ Updated Claude Code configuration for {projects_updated} project(s)')
-        else:
-            print('ℹ️  No projects needed QMD context configuration')
-    else:
-        print('Warning: Could not get QMD contexts, skipping project config update')
-except Exception as e:
-    print(f'Warning: Error updating project config: {e}')
-"
-fi
+################################################################################
+# Generate vector embeddings per project
+################################################################################
 
-# Generate vector embeddings (this will download GGUF models on first run)
 echo ""
-if [ $PROJECTS_FOUND -gt 0 ]; then
-    echo "Generating vector embeddings for all collections..."
-    echo "(Downloading GGUF models ~2GB if not cached...)"
-    qmd embed
-    echo "✓ Embeddings generated"
-else
-    echo "⚠️  No projects to embed - skipping embedding generation"
-    echo "    Run this script again after cloning your project"
-fi
+echo "Generating vector embeddings..."
+echo "(First run downloads GGUF models ~2GB to ~/.cache/qmd/models/)"
 
-# Show index status
-echo ""
-echo "========================================="
-echo "QMD Status:"
-echo "========================================="
-qmd status
+for symlink in "$HOME"/.cache/qmd/*.sqlite; do
+    [ -L "$symlink" ] || continue
+    project_name=$(basename "$symlink" .sqlite)
+    echo ""
+    echo "  Embedding: $project_name..."
+    qmd --index "$project_name" embed && echo "  Done: $project_name"
+done
+
+################################################################################
+# Summary
+################################################################################
 
 echo ""
 echo "========================================="
-echo "✓ QMD initialization complete!"
+echo "QMD Per-Project Status"
+echo "========================================="
+for symlink in "$HOME"/.cache/qmd/*.sqlite; do
+    [ -L "$symlink" ] || continue
+    project_name=$(basename "$symlink" .sqlite)
+    echo ""
+    echo "  [$project_name]"
+    qmd --index "$project_name" status 2>/dev/null || echo "  (not yet initialized)"
+done
+
+echo ""
+echo "========================================="
+echo "  QMD initialization complete!"
 echo "========================================="
 echo ""
-echo "Notes:"
-echo "  - GGUF models (~2GB) are stored in: ~/.cache/qmd/models/"
-echo "    (Mounted from Windows: C:/rustdev/docker/qmd_models - shared across projects)"
-echo "  - Index database persisted in: ~/.cache/qmd/index.sqlite"
-echo "    (In per-project home volume for clean separation)"
-echo "  - Claude history in: ~/.claude/"
-echo "    (Mounted from Windows: C:/rustdev/claude_config - eternal persistence)"
-echo "  - This script is safe to run multiple times"
+echo "Per-project layout:"
+echo "  DB:          {repo}/.qmd/index.sqlite   (in-repo, git-ignored)"
+echo "  Symlink:     ~/.cache/qmd/{name}.sqlite → repo DB"
+echo "  Config:      ~/.config/qmd/{name}.yml"
+echo "  MCP:         {repo}/.mcp.json           (Claude Code auto-picks up on open)"
+echo "  Models:      ~/.cache/qmd/models/       (shared across projects, ~2GB)"
 echo ""
-echo "Next steps:"
-echo "  1. QMD is already configured with Claude Code via MCP"
-echo "  2. Review the global CLAUDE.md in ~/.claude/CLAUDE.md"
-echo "  3. Optionally create a project-specific CLAUDE.md in /workspace"
-echo "  4. Test: claude code (then ask a question about your code)"
+echo "Available aliases (after: source ~/.bashrc):"
+for alias_line in "${ALIASES_ADDED[@]}"; do
+    echo "  $alias_line"
+done
 echo ""
-echo "Maintenance commands:"
-echo "  qmd-update   - Re-index after code changes"
-echo "  qmd-refresh  - Full re-index with embedding refresh"
-echo "  qmd-status   - Check index health"
+echo "Usage per project:"
+echo "  qmd-{name} status    — check index health"
+echo "  qmd-{name} update    — re-index after code changes"
+echo "  qmd-{name} embed     — regenerate semantic embeddings"
+echo "  qmd-{name} query ... — search that project's index"
+echo ""
+echo "On a new machine: clone the repo, then run:  ~/init_qmd.sh"
+echo "Claude Code project context is set automatically via {repo}/.mcp.json"
 echo ""

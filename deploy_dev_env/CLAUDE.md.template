@@ -30,12 +30,17 @@ Before reading files or exploring directories, **always use QMD** to search for 
 
 ### Collections:
 
-- **workspace** — Current project in /workspace
-- File types indexed: `*.rs`, `*.md`, `*.toml`, `*.json`, `*.yaml`, `*.yml`, `*.sh`
+Each project has its own QMD index. The active index is selected automatically
+by Claude Code via the project's `.mcp.json` (which sets `qmd --index {name}`).
+
+- **Per-repo index** — only documents from the current project are indexed
+- DB lives at `{repo}/.qmd/index.sqlite` (git-ignored)
+- To check which index is active: `qmd-status` (shows all) or `qmd --index {name} status`
+- To re-index after changes: `qmd-{name} update` (alias added by `~/init_qmd.sh`)
 
 ### Index Maintenance:
 
-Remind users to run `qmd-update` after significant code changes:
+Remind users to run `qmd-{name} update` after significant code changes:
 - After merging branches
 - After pulling updates
 - After adding new files

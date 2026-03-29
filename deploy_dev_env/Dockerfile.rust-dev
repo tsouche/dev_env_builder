@@ -11,8 +11,8 @@
 # - Bun runtime (for QMD support)
 # - Playwright + Chromium (for gstack /browse skill)
 # - QMD (Query Markup Documents) pre-installed globally
-# - QMD aliases (qmd-update, qmd-refresh, qmd-status, qmd-search, qmd-reindex)
-# - QMD auto-init function in .bashrc (checks ~/.cache/qmd/index.sqlite)
+# - QMD aliases: qmd-status (all indexes), qmd-reindex; per-project qmd-{name} added at runtime
+# - qmd-auto-init function in .bashrc (checks ~/.cache/qmd/*.sqlite symlinks)
 # - Claude Code MCP configuration (~/.claude/settings.json)
 # - SSH server configured with host keys
 # - VS Code extensions auto-install

@@ -608,40 +608,38 @@ docker exec -u root $env:CONTAINER_NAME bash -c "mkdir -p /home/rustdev/.cache/q
 docker exec -u root $env:CONTAINER_NAME bash -c "chown -R 1026:110 /home/rustdev/.cache/qmd/models"
 Write-Success "Directory structure created with proper permissions"
 
+# Always copy the on-disk init_qmd.sh so the container has the latest version
+# (overrides whichever version was baked into the image at build time)
+Write-Host "Copying latest init_qmd.sh to container..." -ForegroundColor Yellow
+docker cp "$ScriptDir\init_qmd.sh" "$($env:CONTAINER_NAME):/home/rustdev/init_qmd.sh" | Out-Null
+docker exec -u root $env:CONTAINER_NAME bash -c "dos2unix /home/rustdev/init_qmd.sh 2>/dev/null || sed -i 's/\r//' /home/rustdev/init_qmd.sh ; chmod +x /home/rustdev/init_qmd.sh ; chown 1026:110 /home/rustdev/init_qmd.sh"
+Write-Success "init_qmd.sh updated in container"
+
 Write-Host "Running QMD auto-initialization..." -ForegroundColor Yellow
-Write-Host "  This runs the idempotent init_qmd.sh script automatically." -ForegroundColor Gray
-Write-Host "  - First run: Downloads models (~2GB) and creates index" -ForegroundColor Gray
-Write-Host "  - Subsequent runs: Updates existing index if workspace changed" -ForegroundColor Gray
+Write-Host "  - With no repo cloned yet: completes in seconds (no embed run)" -ForegroundColor Gray
+Write-Host "  - After cloning a repo: run ~/init_qmd.sh again to index it" -ForegroundColor Gray
 Write-Host ""
 
-# Trigger model download explicitly if models don't exist
+# Model download check: skip if models already present
 $modelCheckResult = docker exec -u rustdev $env:CONTAINER_NAME bash -c "ls ~/.cache/qmd/models/*.gguf 2>/dev/null | wc -l" 2>$null
 if ([int]$modelCheckResult -eq 0) {
-    Write-Host "Downloading QMD GGUF models (~2GB, one-time download)..." -ForegroundColor Cyan
-    Write-Host "  This may take 2-5 minutes depending on your internet connection." -ForegroundColor Gray
-    Write-Host ""
-    try {
-        # Trigger model download by running a test embedding
-        docker exec -u rustdev $env:CONTAINER_NAME bash -c "cd /workspace && echo '# Test' > /tmp/test.md && qmd collection add /tmp/test.md --name temp_init && qmd collection remove temp_init && rm /tmp/test.md" 2>&1 | Out-Null
-        Write-Success "GGUF models downloaded successfully"
-    } catch {
-        Write-Warning-Custom "Model download may still be in progress. QMD will complete on first use."
-    }
+    Write-Host "Note: GGUF models (~2GB) not yet downloaded." -ForegroundColor Cyan
+    Write-Host "      They will download automatically the first time you run ~/init_qmd.sh after cloning a repo." -ForegroundColor Gray
 } else {
-    Write-Success "GGUF models already present (reusing from previous deployment)"
+    Write-Success "GGUF models already present ($modelCheckResult file(s)) — skipping download"
 }
 
 Write-Host ""
 
 try {
     # Run init_qmd.sh inside the container as rustdev user
-    docker exec -u rustdev $env:CONTAINER_NAME bash -c "~/init_qmd.sh"
+    docker exec -u rustdev $env:CONTAINER_NAME bash /home/rustdev/init_qmd.sh
     Write-Success "QMD initialization completed"
     Write-Host ""
-    Write-Host "+ QMD is ready! Claude Code will automatically use it for searches." -ForegroundColor Green
+    Write-Host "+ QMD is ready! Clone a repo inside the container then re-run ~/init_qmd.sh" -ForegroundColor Green
 } catch {
     Write-Warning-Custom "QMD initialization encountered an issue: $_"
-    Write-Host "   QMD will auto-initialize on first shell login instead." -ForegroundColor Yellow
+    Write-Host "   Run manually inside container: ~/init_qmd.sh" -ForegroundColor Yellow
 }
 
 Write-Host ""
@@ -684,7 +682,7 @@ Write-Header "Running Deployment Test Suite"
 
 Write-Host "Copying test script to container..." -ForegroundColor Yellow
 docker cp "$ScriptDir\test-deployment.sh" "$($env:CONTAINER_NAME):/home/rustdev/test-deployment.sh" | Out-Null
-docker exec -u root $env:CONTAINER_NAME chmod +x /home/rustdev/test-deployment.sh
+docker exec -u root $env:CONTAINER_NAME bash -c "dos2unix /home/rustdev/test-deployment.sh 2>/dev/null || sed -i 's/\r//' /home/rustdev/test-deployment.sh ; chmod +x /home/rustdev/test-deployment.sh"
 
 Write-Host "Running tests inside container..." -ForegroundColor Yellow
 Write-Host ""

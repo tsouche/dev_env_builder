@@ -147,15 +147,95 @@ else
     fail "qmd dist/cli/qmd.js" "missing — broken npm install"
 fi
 
-# QMD MCP server configured in ~/.claude.json
-if [ -f ~/.claude.json ] || [ -L ~/.claude.json ]; then
-    if grep -q '"qmd"' ~/.claude.json 2>/dev/null; then
-        pass "QMD MCP in ~/.claude.json" "configured"
-    else
-        warn "QMD MCP in ~/.claude.json" "entry missing — add manually"
-    fi
+# Per-repo architecture: init_qmd.sh must have been run and created symlinks
+QMD_SYMLINKS=0
+for _f in "$HOME"/.cache/qmd/*.sqlite; do [ -L "$_f" ] && QMD_SYMLINKS=$((QMD_SYMLINKS+1)); done
+if [ "$QMD_SYMLINKS" -gt 0 ]; then
+    pass "Per-repo index symlinks" "$QMD_SYMLINKS found in ~/.cache/qmd/"
 else
-    warn "~/.claude.json" "file not found (not authenticated yet)"
+    warn "Per-repo index symlinks" "none found — run ~/init_qmd.sh"
+fi
+
+# Each symlink must be a real symlink (not a plain file) pointing into a repo .qmd/
+SYMLINK_BROKEN=0
+SYMLINK_OK=0
+for symlink in "$HOME"/.cache/qmd/*.sqlite; do
+    [ -e "$symlink" ] || continue
+    if [ -L "$symlink" ]; then
+        target=$(readlink -f "$symlink" 2>/dev/null || echo "")
+        if echo "$target" | grep -q "\.qmd/index\.sqlite$"; then
+            SYMLINK_OK=$((SYMLINK_OK+1))
+        else
+            SYMLINK_BROKEN=$((SYMLINK_BROKEN+1))
+        fi
+    else
+        SYMLINK_BROKEN=$((SYMLINK_BROKEN+1))
+    fi
+done
+if [ "$SYMLINK_OK" -gt 0 ] && [ "$SYMLINK_BROKEN" -eq 0 ]; then
+    pass "Symlinks → {repo}/.qmd/index.sqlite" "$SYMLINK_OK valid"
+elif [ "$SYMLINK_BROKEN" -gt 0 ]; then
+    warn "Symlinks → {repo}/.qmd/index.sqlite" "$SYMLINK_BROKEN broken, $SYMLINK_OK ok — re-run ~/init_qmd.sh"
+fi
+
+# Each per-repo index must have a .mcp.json pointing at 'qmd --index {name} mcp'
+MCP_OK=0
+MCP_MISSING=0
+for symlink in "$HOME"/.cache/qmd/*.sqlite; do
+    [ -L "$symlink" ] || continue
+    project_name=$(basename "$symlink" .sqlite)
+    # Resolve the repo dir: target is {repo}/.qmd/index.sqlite
+    target=$(readlink -f "$symlink" 2>/dev/null || echo "")
+    repo_dir=$(dirname "$(dirname "$target")" 2>/dev/null || echo "")
+    mcp_file="$repo_dir/.mcp.json"
+    if [ -f "$mcp_file" ] && grep -q "\"--index\"" "$mcp_file" 2>/dev/null && \
+       grep -q "\"$project_name\"" "$mcp_file" 2>/dev/null; then
+        MCP_OK=$((MCP_OK+1))
+    else
+        MCP_MISSING=$((MCP_MISSING+1))
+        warn "  .mcp.json for $project_name" "${mcp_file:-not found}"
+    fi
+done
+if [ "$MCP_OK" -gt 0 ] && [ "$MCP_MISSING" -eq 0 ]; then
+    pass "{repo}/.mcp.json (per-project MCP)" "$MCP_OK repos configured"
+elif [ "$MCP_OK" -eq 0 ] && [ "$MCP_MISSING" -eq 0 ]; then
+    warn "{repo}/.mcp.json" "no repos found to check"
+else
+    warn "{repo}/.mcp.json" "$MCP_OK ok, $MCP_MISSING missing — re-run ~/init_qmd.sh"
+fi
+
+# Each repo's .gitignore must ignore .qmd/*.sqlite*
+GITIGNORE_OK=0
+GITIGNORE_MISSING=0
+for symlink in "$HOME"/.cache/qmd/*.sqlite; do
+    [ -L "$symlink" ] || continue
+    target=$(readlink -f "$symlink" 2>/dev/null || echo "")
+    repo_dir=$(dirname "$(dirname "$target")" 2>/dev/null || echo "")
+    if grep -qF ".qmd/*.sqlite" "$repo_dir/.gitignore" 2>/dev/null; then
+        GITIGNORE_OK=$((GITIGNORE_OK+1))
+    else
+        GITIGNORE_MISSING=$((GITIGNORE_MISSING+1))
+    fi
+done
+if [ "$GITIGNORE_OK" -gt 0 ] && [ "$GITIGNORE_MISSING" -eq 0 ]; then
+    pass ".gitignore: .qmd/*.sqlite* ignored" "$GITIGNORE_OK repos"
+elif [ "$GITIGNORE_MISSING" -gt 0 ]; then
+    warn ".gitignore: .qmd/*.sqlite* ignored" "$GITIGNORE_MISSING repo(s) missing entry"
+fi
+
+# Global index must NOT exist (no stale ~/.cache/qmd/index.sqlite plain file)
+if [ -f "$HOME/.cache/qmd/index.sqlite" ] && [ ! -L "$HOME/.cache/qmd/index.sqlite" ]; then
+    warn "~/.cache/qmd/index.sqlite" "plain file (stale global index) — run: qmd cleanup"
+else
+    pass "No stale global index.sqlite" "only per-repo symlinks present"
+fi
+
+# Per-project aliases written by init_qmd.sh (look for the managed block marker)
+if grep -qF "# QMD per-project aliases — managed by init_qmd.sh" "$HOME/.bashrc" 2>/dev/null; then
+    ALIAS_COUNT=$(grep -c "^alias qmd-" "$HOME/.bashrc" 2>/dev/null || echo 0)
+    pass "Per-project qmd-{name} aliases" "$ALIAS_COUNT in ~/.bashrc"
+else
+    warn "Per-project qmd-{name} aliases" "marker not found in ~/.bashrc — run ~/init_qmd.sh"
 fi
 
 

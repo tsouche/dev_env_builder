@@ -2,7 +2,9 @@
 # Uses pre-built base image tsouche/base_rust_dev:latest (v0.7.1+)
 # Local laptop deployment with SSH and debugging tools
 # Docker CLI available inside dev container - binaries copied via docker cp
-# QMD index at ~/.cache/qmd/ (per-project via home volume)
+# QMD: per-repo DB at {repo}/.qmd/index.sqlite (inside /workspace volume)
+#       symlinks at ~/.cache/qmd/{name}.sqlite (inside home volume)
+#       models at ~/.cache/qmd/models/ (shared Windows volume, ~2GB)
 # gstack skills at ~/.claude/skills/gstack (persistent via .claude volume)
 
 services:
@@ -38,11 +40,10 @@ services:
       # Claude history - ETERNAL PERSISTENCE (survives all cleanups)
       - ${VOLUME_CLAUDE_CONFIG}:/home/rustdev/.claude
       
-      # QMD - Split Architecture (Option C)
-      # GGUF Models (~2GB) - Shared across ALL projects, downloaded once
+      # QMD GGUF Models (~2GB) — shared across ALL projects, downloaded once
       - ${VOLUME_QMD_MODELS:-C:/rustdev/docker/qmd_models}:/home/rustdev/.cache/qmd/models
-      # Note: QMD index (index.sqlite) lives in home directory at ~/.cache/qmd/
-      #       It's automatically per-project via the rustdev_${PROJECT_NAME} mount below
+      # Note: QMD per-repo DB is at {repo}/.qmd/index.sqlite inside /workspace.
+      #       Symlinks ~/.cache/qmd/{name}.sqlite live in the home volume below.
       
       # Project workspace
       - ${PROJECT_PATH}:/workspace
@@ -113,8 +114,6 @@ services:
 # Named volumes for performance-critical data
 # Note: For different projects, update volume names in this section
 volumes:
-  qmd_index_set_backend:
-    name: qmd_index_set_backend
   rustdev_set_backend:
     name: rustdev_set_backend
 
