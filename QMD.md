@@ -1,94 +1,92 @@
-# How to set up QMD for Claude
+# QMD in this dev environment
 
-Here’s the full setup, step by step.
+QMD ([`@tobilu/qmd`](https://github.com/tobi/qmd), Query Markup Documents) is an
+on-device search engine — BM25 keyword search + vector semantic search + LLM
+reranking — that lets Claude Code search a codebase instead of reading every
+file. In this repo it is **pre-installed in the base image** and **wired up
+per-project at deploy time**; there is nothing to install manually.
 
-## Step 1: Install qmd
+For the full rationale and design history, see
+[QMD_IMPLEMENTATION_GUIDE.md](QMD_IMPLEMENTATION_GUIDE.md) (superseded in
+places — see the note at its top) and the QMD section of
+[deploy_dev_env/README.md](deploy_dev_env/README.md#35-qmd---ai-optimized-code-indexing).
+This file is a short reference for how it actually works today.
 
-First, install Bun if you don’t have it:
+## Where it comes from
 
-```sh
-curl -fsSL https://bun.sh/install | bash
+- **Binary**: installed globally in the base image via
+  `npm install -g @tobilu/qmd` (see
+  [build_base_dev_image/Dockerfile.base_rust_dev](build_base_dev_image/Dockerfile.base_rust_dev)).
+  Node 22 is required by QMD's engine constraint. Bun is also present, but the
+  npm package ships a pre-built `dist/`, so the QMD wrapper runs under node.
+- **Per-project setup**: [deploy_dev_env/init_qmd.sh](deploy_dev_env/init_qmd.sh),
+  copied fresh into the container on every deploy and run automatically by
+  `deploy-dev.ps1`, and again on first interactive shell login via the
+  `qmd-auto-init` bashrc function.
+
+## Per-repo index model
+
+Every git repo found under `~/` or `/workspace` gets its **own** isolated
+index — there is no single global collection:
+
+| Artifact | Location |
+| --- | --- |
+| Index DB | `{repo}/.qmd/index.sqlite` (auto-added to the repo's `.gitignore`) |
+| Discovery symlink | `~/.cache/qmd/{name}.sqlite` |
+| Named config | `~/.config/qmd/{name}.yml` |
+| Claude Code MCP override | `{repo}/.mcp.json` → `qmd --index {name} mcp` |
+| Shell alias | `qmd-{name}` = `qmd --index {name}` |
+| Shared GGUF models | `~/.cache/qmd/models/` (~2GB, downloaded once, reused by all projects) |
+
+Indexed file mask: `**/*.{rs,md,toml,json,yaml,yml,sh,py,js,ts,jsx,tsx,go,c,cpp,h,hpp}`.
+
+Because each repo carries its own `.mcp.json`, Claude Code automatically
+scopes QMD search to whichever project is open — no manual MCP config editing.
+
+## Setup
+
+Nothing to install. After deployment:
+
+```bash
+# Inside the container, after cloning a project
+~/init_qmd.sh
 ```
 
-Then install qmd:
+`init_qmd.sh` is fully idempotent — safe to re-run after cloning a new repo or
+pulling changes. It:
 
-```sh
-bun install -g github:tobi/qmd
+1. Creates `.qmd/`, the cache symlink, and the named config for each repo
+2. Creates or updates the index (`qmd --index {name} collection add|update`)
+3. Writes/refreshes `{repo}/.mcp.json`
+4. Adds a `qmd-{name}` alias to `~/.bashrc`
+5. Generates vector embeddings (`qmd --index {name} embed`) — downloads the
+   GGUF models on first run only
+
+## Daily usage
+
+```bash
+qmd-status                 # health of every per-repo index (from Dockerfile bashrc helper)
+qmd-{name} status          # health of one project's index
+qmd-{name} update          # re-index after code changes
+qmd-{name} embed           # regenerate semantic embeddings
+qmd-{name} query "..."     # hybrid search (BM25 + rerank) — best quality
+qmd-{name} search "..."    # fast BM25 keyword search
+qmd-{name} vsearch "..."   # semantic vector search
+qmd-{name} get <file>      # retrieve a specific document
+qmd-reindex                 # alias for ~/init_qmd.sh — rescans for new repos
 ```
 
-## Step 2: Index your projects
+`qmd-auto-init` runs on every interactive shell login: it triggers
+`~/init_qmd.sh` if no per-repo index exists yet, and warns if the newest index
+is more than 24h old.
 
-For each project you work on:
+## Claude Code integration
 
-```sh
-qmd collection add ./my-project --name myproject
-```
-
-This indexes all markdown and JSON files by default. You can customize the file patterns with --mask:
-
-```sh
-qmd collection add ./my-project --name myproject --mask "**/*.{ts,tsx,md,json}"
-```
-
-Then generate vector embeddings for semantic search:
-
-```sh
-qmd embed
-```
-
-You can verify everything is indexed:
-
-```sh
-qmd status
-```
-
-I have 27 collections with 181 indexed documents across all my projects. The index is lightweight and fast.
-
-To keep the index up to date as your code changes:
-
-```sh
-qmd update
-```
-
-## Step 3: Add qmd as an MCP server in Claude Code
-
-Open your Claude Code MCP config at ~/.claude/settings.json and add qmd:
-
-```json
-{
-  "mcpServers": {
-    "qmd": {
-      "command": "qmd",
-      "args": [
-        "mcp"
-      ]
-    }
-  }
-}
-```
-
-Restart Claude Code. It now has access to qmd’s search tools natively — search, vsearch, query, get, and multi_get.
-
-## Step 4: The secret sauce — CLAUDE.md
-
-This is the most important step, and the one most people skip.
-
-Claude Code doesn’t know it should use qmd unless you tell it. By default, it will fall back to its usual Read/Glob/Grep behavior.
-
-Add this to your project’s `CLAUDE.md` (or `~/.claude/CLAUDE.md` for a global rule that applies everywhere):
-
-### Rule: always use qmd before reading files
-
-Before reading files or exploring directories, always use qmd to search for information in local projects.
-
-Available tools:
-
-- `qmd search “query”` — fast keyword search (BM25)
-- `qmd query “query”` — hybrid search with reranking (best quality)
-- `qmd vsearch “query”` — semantic vector search
-- `qmd get <file>` — retrieve a specific document
-
-Use qmd search for quick lookups and qmd query for complex questions.
-Use Read/Glob only if qmd doesn’t return enough results.
-
-Once this is in place, Claude will always search the index first. It will only fall back to reading full files when it genuinely can’t find what it needs through the index.
+The MCP server is registered per-repo in `{repo}/.mcp.json`
+(`qmd --index {name} mcp`), plus an eternal fallback in the bind-mounted
+`~/.claude.json` (`qmd mcp`, no `--index`) so QMD is available even outside an
+indexed repo. The rule telling Claude Code to prefer QMD over
+Read/Glob/Grep lives in the global template at
+[deploy_dev_env/CLAUDE.md.template](deploy_dev_env/CLAUDE.md.template), copied
+to `~/.claude/CLAUDE.md`. Available MCP tools: `search`, `query`, `vsearch`,
+`get`, `multi_get`.

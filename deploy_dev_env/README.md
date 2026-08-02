@@ -531,115 +531,80 @@ git clone https://github.com/your-username/your-project.git
 
 **Data safety:** Your home directory is backed by a per-project Docker named volume, so projects persist across container rebuilds. Just **push to git frequently** for ultimate safety.
 
-#### Smart Auto-Detection ✨ NEW in v0.6.10
+#### Per-repo index model (current, since v0.7.x)
 
-**QMD automatically detects and indexes all git repositories** in both locations:
+**Every git repository gets its own isolated QMD index** — there is no single
+global collection. `init_qmd.sh` scans `~/` and `/workspace` for git repos and,
+for each one, creates:
 
-- **`~/` (recommended)** - All git repos in home directory
-- **`/workspace`** - All git repos in workspace mount
+| Artifact | Location |
+| --- | --- |
+| Index DB | `{repo}/.qmd/index.sqlite` (in-repo, auto-added to `.gitignore`) |
+| Discovery symlink | `~/.cache/qmd/{name}.sqlite` |
+| Named config | `~/.config/qmd/{name}.yml` |
+| Claude Code MCP override | `{repo}/.mcp.json` → `qmd --index {name} mcp` |
+| Shell alias | `qmd-{name}` = `qmd --index {name}` |
+| Shared GGUF models | `~/.cache/qmd/models/` (~2GB, downloaded once, reused by all projects) |
 
-**Initialization happens automatically** through 3 mechanisms:
+**Initialization happens automatically** through 2 mechanisms:
 
-1. **✅ During Deployment** - `deploy-dev.ps1` runs QMD initialization after deployment
-2. **✅ On First Shell Login** - `.bashrc` detects uninitialized QMD and runs `init_qmd.sh`
-3. **✅ Periodic Repository Scanning** - Every hour, `.bashrc` checks for new git repositories and auto-indexes them
-4. **✅ VS Code Connection** - `devcontainer.json` postStartCommand triggers on Remote-SSH
+1. **✅ During Deployment** — `deploy-dev.ps1` copies the latest `init_qmd.sh`
+   into the container and runs it after deployment (completes in seconds if
+   no repo is cloned yet)
+2. **✅ On First Shell Login** — `.bashrc`'s `qmd-auto-init` function detects
+   when no per-repo index exists and runs `init_qmd.sh`
 
-**Result: Clone anywhere, QMD indexes automatically and configures Claude Code!** 🎉
-
-#### Automatic Claude Code Integration
-
-QMD initialization automatically configures Claude Code to use QMD for code searches:
-
-- **Project Configuration**: Updates `.claude.json` with QMD contexts (`qmd://project_name`)
-- **MCP Context URIs**: Adds `mcpContextUris` to project settings for seamless integration
-- **No Manual Setup**: Claude Code immediately uses QMD for intelligent code searches
-
-#### Manual Re-indexing (Optional)
-
-After cloning new projects, re-run initialization:
+After cloning a new repo, re-run initialization manually:
 
 ```bash
-# Scans ~/  and /workspace for all git repos and indexes them
 ~/init_qmd.sh
-```
-
-Or use the convenient alias:
-
-```bash
+# or, from the alias:
 qmd-reindex
 ```
 
-**What the auto-detection does:**
+The script is fully idempotent — safe to run any number of times. If a
+project's index already exists it's updated; otherwise it's created. New
+repos are picked up automatically the next time it runs.
 
-1. Scans `~/` and `/workspace` for git repositories
-2. Creates/updates collections for each project
-3. Downloads GGUF models (~2GB) **only on first run** (cached afterward)
-4. Generates vector embeddings for all projects
-5. Adds context descriptions automatically
+#### Automatic Claude Code Integration
 
-**The script is fully idempotent:**
-
-- If collection exists → Updates index
-- If no projects found → Shows warning
-- If models cached → Reuses them
-- Safe to run anytime, any number of times
-
-**Time required:**
-
-- **First run ever**: ~5-10 minutes (model download + indexing)
-- **Subsequent runs**: ~1-2 minutes per project (reuses cached models)
-- **Re-index existing**: Seconds (updates index only)
+Each repo carries its own `{repo}/.mcp.json`, so opening a project in Claude
+Code automatically scopes all QMD searches to that project's index — no
+manual MCP config editing. A fallback global MCP entry (`qmd mcp`, no
+`--index`) also lives in the eternal `~/.claude.json` for use outside an
+indexed repo.
 
 **Persistence:**
 
-- ✅ **GGUF models**: Cached in `C:/rustdev/docker/qmd_models` (Windows bind mount)
-  - Downloaded once, shared across ALL projects - **never re-download**
-- ✅ **Index database**: Persists in `~/.cache/qmd` (in per-project home volume: `rustdev_${PROJECT_NAME}`)
-  - Clean separation between projects via home volume
-- ✅ **Claude history**: Cached in `C:/rustdev/claude_config` (Windows bind mount)
-  - ETERNAL persistence across all projects
-- ✅ **Your projects**: Persist in `rustdev_${PROJECT_NAME}` named volume (per-project)
-- ✅ **Collections**: Auto-update when you run `qmd-reindex`
+- ✅ **GGUF models**: Cached in `C:/rustdev/docker/qmd_models` (Windows bind
+  mount) — downloaded once, shared across ALL projects, never re-downloaded
+- ✅ **Index database**: Lives inside each repo at `.qmd/index.sqlite`, so it
+  persists with the repo itself (in the per-project home volume or
+  `/workspace` bind mount)
+- ✅ **Claude history**: Cached in `C:/rustdev/claude_config` (Windows bind
+  mount) — eternal persistence across all projects
 
 #### Daily Usage
 
-**Update index after code changes** (works from any directory):
-
 ```bash
-qmd-update
+qmd-status                 # health of every per-repo index found on this machine
+qmd-{name} status          # health of one project's index
+qmd-{name} update          # re-index after code changes
+qmd-{name} embed           # regenerate semantic embeddings
+qmd-{name} query "..."     # hybrid search (BM25 + rerank) — best quality
+qmd-{name} search "..."    # fast BM25 keyword search
+qmd-{name} vsearch "..."   # semantic vector search
+qmd-reindex                 # alias for ~/init_qmd.sh — rescans for new repos
 ```
 
-**Check index status:**
-
-```bash
-qmd-status
-```
-
-**Full refresh (after major changes):**
-
-```bash
-qmd-refresh
-```
-
-**Re-scan and index new projects:**
-
-```bash
-qmd-reindex  # or ~/init_qmd.sh
-```
-
-**Manual search from command line:**
-
-```bash
-qmd search "error handling"
-qmd query "authentication flow"
-qmd vsearch "similar login patterns"
-```
+(`{name}` is the repo's directory name — the alias is written to `~/.bashrc`
+by `init_qmd.sh` for every indexed project.)
 
 #### How It Works
 
 1. QMD indexes your code with BM25 + vector embeddings
-2. Claude Code queries QMD via MCP (Model Context Protocol)
+2. Claude Code queries QMD via MCP (Model Context Protocol), scoped to the
+   current repo's index via `.mcp.json`
 3. QMD returns relevant code snippets instead of scanning all files
 4. Result: Faster responses, lower costs, better accuracy
 
@@ -647,68 +612,34 @@ qmd vsearch "similar login patterns"
 
 **"qmd: command not found"**
 
-- Rebuild container (Bun and QMD not installed)
+- Rebuild the base image (QMD is installed there, not per-deployment)
 
 **Models downloading slowly**
 
-- First deployment downloads ~2GB of GGUF models (one-time)
+- First embed run downloads ~2GB of GGUF models (one-time)
 - Cached in `C:/rustdev/docker/qmd_models` (persists forever, shared across all projects)
-- Subsequent deployments reuse cached models
+- Subsequent deployments and projects reuse the cached models
 
-**"No projects found" during initialization**
+**"No git repositories found" during initialization**
 
 - Clone a git repository first:
 
   ```bash
   cd ~  # Recommended for performance
   git clone https://github.com/your-username/your-project.git
-  ~/init_qmd.sh  # Re-run to detect new project
+  ~/init_qmd.sh  # Re-run to detect and index the new repo
   ```
-
-**QMD Initialization Status**
-
-✅ **Automatic** (v0.6.10+): QMD auto-detects and indexes:
-
-- All git repositories in `~/` (home directory)
-- All git repositories in `/workspace` (bind mount)
-- Runs automatically via:
-  - Deployment script (post-deployment)
-  - .bashrc (first shell login)
-  - VS Code connection (devcontainer.json postStartCommand)
-
-**Manual re-indexing** (after cloning new projects):
-
-```bash
-qmd-reindex   # Alias for ~/init_qmd.sh
-# Scans ~/  and /workspace, indexes all git repos
-```
-
-**When to use maintenance commands:**
-
-| Command | When to Use | Works From |
-|---------|-------------|------------|
-| `qmd-update` | After code changes | Any directory |
-| `qmd-refresh` | After major refactoring | Any directory |
-| `qmd-reindex` | After cloning new projects | Any directory |
-| `qmd-status` | Check index health | Any directory |
-| `qmd-search "query"` | Quick search | Any directory |
-
-**All aliases are location-aware** - they work from any directory (no need to `cd` first)
 
 **Outdated search results**
 
-- Run `qmd-update` to re-index current project
-- Or `qmd-reindex` to re-scan and update all projects
+- Run `qmd-{name} update` to re-index that project
+- Or `~/init_qmd.sh` (`qmd-reindex`) to re-scan and update all projects
 
 **QMD not being used by Claude Code**
 
-- Check `~/.claude/CLAUDE.md` exists
-- Verify MCP config: `cat ~/.claude/settings.json`
-
-**Empty workspace warning during init**
-
-- Normal if you haven't cloned projects yet
-- Run `~/init_qmd.sh` again after cloning your repository
+- Check `{repo}/.mcp.json` exists and points at `qmd --index {name} mcp`
+- Check `~/.claude/CLAUDE.md` exists and contains the QMD-first rule
+- Verify the fallback MCP entry: `cat ~/.claude.json | grep qmd`
 
 ### 4. Build for Ubuntu Staging/Production Deployment
 

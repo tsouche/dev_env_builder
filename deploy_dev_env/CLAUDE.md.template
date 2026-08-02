@@ -51,7 +51,7 @@ Remind users to run `qmd-{name} update` after significant code changes:
 When using QMD results:
 - Cite the source file and context
 - Mention the QMD score if relevant
-- If results seem outdated, suggest running `qmd-update`
+- If results seem outdated, suggest running `qmd-{name} update`
 
 ## gstack
 

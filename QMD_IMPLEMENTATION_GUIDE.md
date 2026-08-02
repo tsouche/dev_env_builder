@@ -3,6 +3,14 @@
 **Date:** February 9, 2026  
 **Purpose:** Enable QMD (Query Markup Documents) for AI-optimized code indexing and efficient Claude Code integration
 
+> **⚠️ Superseded.** This guide describes the original global-index design
+> (single `workspace` collection, `~/.claude/settings.json`, `bun install -g
+> github:tobi/qmd`). The repo migrated to a **per-repo index model** in
+> March 2026 (`.qmd/index.sqlite` per project, `{repo}/.mcp.json`, npm
+> install). Kept here as historical design record. For the current setup, see
+> [QMD.md](QMD.md) and the QMD section of
+> [deploy_dev_env/README.md](deploy_dev_env/README.md#35-qmd---ai-optimized-code-indexing).
+
 ---
 
 ## Table of Contents
