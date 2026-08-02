@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# Deployment Test Suite - v0.7.1
+# Deployment Test Suite - v0.8.0
 # Validates all components of the dev environment after deployment.
 # Called automatically by deploy-dev.ps1 after initialization.
 #
@@ -85,6 +85,28 @@ else
     fail "Bun runtime" "not found in PATH"
 fi
 
+# uv (required for Graphify)
+if command -v uv &>/dev/null; then
+    UV_VER=$(uv --version 2>/dev/null | awk '{print $2}')
+    pass "uv package manager" "v$UV_VER"
+else
+    fail "uv package manager" "not found in PATH"
+fi
+
+# Python3 >= 3.10 (used by deploy script for JSON manipulation; also Graphify's floor)
+if command -v python3 &>/dev/null; then
+    PY3_VER=$(python3 --version 2>/dev/null | awk '{print $2}')
+    PY3_MAJOR=$(echo "$PY3_VER" | cut -d. -f1)
+    PY3_MINOR=$(echo "$PY3_VER" | cut -d. -f2)
+    if [ "$PY3_MAJOR" -gt 3 ] || { [ "$PY3_MAJOR" -eq 3 ] && [ "$PY3_MINOR" -ge 10 ]; }; then
+        pass "Python3 >= 3.10" "$PY3_VER"
+    else
+        warn "Python3 >= 3.10" "got $PY3_VER — Graphify requires >=3.10, deploy script MCP merge may fail"
+    fi
+else
+    warn "Python3" "not found (deploy script MCP merge may fail; Graphify requires >=3.10)"
+fi
+
 # Rust — rustc
 if command -v rustc &>/dev/null; then
     RUST_VER=$(rustc --version 2>/dev/null | awk '{print $2}')
@@ -107,14 +129,6 @@ if command -v git &>/dev/null; then
     pass "git" "v$GIT_VER"
 else
     fail "git" "not found in PATH"
-fi
-
-# python3 (used by deploy script for JSON manipulation)
-if command -v python3 &>/dev/null; then
-    PY_VER=$(python3 --version 2>/dev/null | awk '{print $2}')
-    pass "Python3" "$PY_VER"
-else
-    warn "Python3" "not found (deploy script MCP merge may fail)"
 fi
 
 
@@ -236,6 +250,141 @@ if grep -qF "# QMD per-project aliases — managed by init_qmd.sh" "$HOME/.bashr
     pass "Per-project qmd-{name} aliases" "$ALIAS_COUNT in ~/.bashrc"
 else
     warn "Per-project qmd-{name} aliases" "marker not found in ~/.bashrc — run ~/init_qmd.sh"
+fi
+
+
+################################################################################
+section "Graphify (Code Knowledge Graph)"
+################################################################################
+
+# graphify binary in PATH
+if command -v graphify &>/dev/null; then
+    GRAPHIFY_PATH=$(which graphify)
+    pass "graphify binary in PATH" "$GRAPHIFY_PATH"
+else
+    fail "graphify binary" "not found in PATH"
+fi
+
+# graphify --version runs without error
+GRAPHIFY_VER=$(graphify --version 2>&1)
+GRAPHIFY_EXIT=$?
+if [ $GRAPHIFY_EXIT -eq 0 ] && [ -n "$GRAPHIFY_VER" ]; then
+    pass "graphify --version" "$GRAPHIFY_VER"
+else
+    fail "graphify --version" "exit $GRAPHIFY_EXIT — ${GRAPHIFY_VER:0:80}"
+fi
+
+# graphify-mcp entrypoint present (mcp extra installed)
+if command -v graphify-mcp &>/dev/null; then
+    pass "graphify-mcp entrypoint" "present ([mcp] extra installed)"
+else
+    warn "graphify-mcp entrypoint" "not found — [mcp] extra may be missing"
+fi
+
+# Discover repos the same way init_graphify.sh does: any dir under ~/ or /workspace with a .git/
+GRAPHIFY_REPOS=()
+for dir in "$HOME"/*/; do
+    [ -d "${dir}.git" ] && GRAPHIFY_REPOS+=("${dir%/}")
+done
+if [ -d "/workspace/.git" ]; then
+    GRAPHIFY_REPOS+=("/workspace")
+elif [ -d "/workspace" ]; then
+    for dir in /workspace/*/; do
+        [ -d "${dir}.git" ] && GRAPHIFY_REPOS+=("${dir%/}")
+    done
+fi
+
+if [ "${#GRAPHIFY_REPOS[@]}" -eq 0 ]; then
+    warn "Per-repo graphs" "no git repositories found — clone a repo, then run ~/init_graphify.sh"
+else
+    GRAPH_OK=0
+    GRAPH_MISSING=0
+    SKILL_OK=0
+    SKILL_MISSING=0
+    HOOK_OK=0
+    HOOK_MISSING=0
+    POSTCOMMIT_OK=0
+    POSTCOMMIT_MISSING=0
+    GITIGNORE_OK=0
+    GITIGNORE_MISSING=0
+
+    for repo in "${GRAPHIFY_REPOS[@]}"; do
+        repo_name=$(basename "$repo")
+
+        # graph.json built and non-trivial
+        graph_file="$repo/graphify-out/graph.json"
+        if [ -s "$graph_file" ]; then
+            GRAPH_OK=$((GRAPH_OK+1))
+        else
+            GRAPH_MISSING=$((GRAPH_MISSING+1))
+            warn "  graphify-out/graph.json ($repo_name)" "missing or empty — run: cd $repo && graphify extract . --code-only --cargo"
+        fi
+
+        # Claude Code project skill installed
+        if [ -f "$repo/.claude/skills/graphify/SKILL.md" ]; then
+            SKILL_OK=$((SKILL_OK+1))
+        else
+            SKILL_MISSING=$((SKILL_MISSING+1))
+        fi
+
+        # PreToolUse hook registered in the repo's .claude/settings.json
+        if grep -q "graphify" "$repo/.claude/settings.json" 2>/dev/null; then
+            HOOK_OK=$((HOOK_OK+1))
+        else
+            HOOK_MISSING=$((HOOK_MISSING+1))
+        fi
+
+        # git post-commit hook installed (auto-rebuild on commit)
+        if grep -q "graphify" "$repo/.git/hooks/post-commit" 2>/dev/null; then
+            POSTCOMMIT_OK=$((POSTCOMMIT_OK+1))
+        else
+            POSTCOMMIT_MISSING=$((POSTCOMMIT_MISSING+1))
+        fi
+
+        # .gitignore excludes the local-only cost.json
+        if grep -qF "graphify-out/cost.json" "$repo/.gitignore" 2>/dev/null; then
+            GITIGNORE_OK=$((GITIGNORE_OK+1))
+        else
+            GITIGNORE_MISSING=$((GITIGNORE_MISSING+1))
+        fi
+    done
+
+    if [ "$GRAPH_OK" -gt 0 ] && [ "$GRAPH_MISSING" -eq 0 ]; then
+        pass "Per-repo graphify-out/graph.json" "$GRAPH_OK repo(s)"
+    elif [ "$GRAPH_OK" -gt 0 ]; then
+        warn "Per-repo graphify-out/graph.json" "$GRAPH_OK ok, $GRAPH_MISSING missing"
+    fi
+
+    if [ "$SKILL_OK" -gt 0 ] && [ "$SKILL_MISSING" -eq 0 ]; then
+        pass ".claude/skills/graphify/SKILL.md" "$SKILL_OK repo(s)"
+    elif [ "$SKILL_OK" -gt 0 ] || [ "$SKILL_MISSING" -gt 0 ]; then
+        warn ".claude/skills/graphify/SKILL.md" "$SKILL_OK ok, $SKILL_MISSING missing — run: graphify claude install --project"
+    fi
+
+    if [ "$HOOK_OK" -gt 0 ] && [ "$HOOK_MISSING" -eq 0 ]; then
+        pass ".claude/settings.json PreToolUse hook" "$HOOK_OK repo(s)"
+    elif [ "$HOOK_OK" -gt 0 ] || [ "$HOOK_MISSING" -gt 0 ]; then
+        warn ".claude/settings.json PreToolUse hook" "$HOOK_OK ok, $HOOK_MISSING missing"
+    fi
+
+    if [ "$POSTCOMMIT_OK" -gt 0 ] && [ "$POSTCOMMIT_MISSING" -eq 0 ]; then
+        pass "git post-commit auto-rebuild hook" "$POSTCOMMIT_OK repo(s)"
+    elif [ "$POSTCOMMIT_OK" -gt 0 ] || [ "$POSTCOMMIT_MISSING" -gt 0 ]; then
+        warn "git post-commit auto-rebuild hook" "$POSTCOMMIT_OK ok, $POSTCOMMIT_MISSING missing — run: graphify hook install"
+    fi
+
+    if [ "$GITIGNORE_OK" -gt 0 ] && [ "$GITIGNORE_MISSING" -eq 0 ]; then
+        pass ".gitignore: graphify-out/cost.json ignored" "$GITIGNORE_OK repo(s)"
+    elif [ "$GITIGNORE_MISSING" -gt 0 ]; then
+        warn ".gitignore: graphify-out/cost.json ignored" "$GITIGNORE_MISSING repo(s) missing entry"
+    fi
+fi
+
+# graphify-status bashrc helper present
+if grep -qF "function graphify-status" "$HOME/.bashrc" 2>/dev/null; then
+    pass "graphify-status bashrc helper" "present"
+else
+    warn "graphify-status bashrc helper" "not found in ~/.bashrc"
 fi
 
 
