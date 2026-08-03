@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.1] - 2026-08-03
+
+### Added
+
+- **Exhaustive functional test suite**, reviewed across the whole
+  environment (QMD, Rust, Docker CLI, Claude Code — not just Graphify):
+  several existing checks only verified structural artifacts or binary
+  presence, not that the tool actually worked. New functional checks catch
+  the difference (see `deploy_dev_env/CHANGELOG.md` for the full list).
+- **`restart: unless-stopped` on `dev-container`** — it needed a manual
+  restart after every Docker/host backend hiccup, unlike the database
+  containers which already had this.
+- **Welcome banner** on every new interactive terminal: tool versions +
+  new-project checklist (`~/init_qmd.sh`, `~/init_graphify.sh`).
+
+### Fixed
+
+Three bugs found by the new functional tests, all sharing the same root
+cause — npm 12's install-scripts hardening silently blocking native-module
+postinstall scripts unless explicitly allow-listed:
+
+- **QMD indexing had never actually worked** — the native sqlite binding
+  was never built (fixed with `--allow-scripts` on QMD's npm install), and
+  independently, `init_qmd.sh`'s "already indexed" detection always
+  false-positived on static text in `qmd status` output, so `collection
+  add` never ran even once that was fixed. Both are fixed now; verified
+  end-to-end with real indexing, real embeddings, real search results.
+- **Claude Code CLI was completely non-functional** — every invocation
+  failed with "claude native binary not installed," invisible in the old
+  test suite because of a lenient fallback that reported a bare "installed"
+  string on any failure. Fixed the same way as QMD.
+
+See [build_base_dev_image/CHANGELOG.md](build_base_dev_image/CHANGELOG.md)
+and [deploy_dev_env/CHANGELOG.md](deploy_dev_env/CHANGELOG.md) for full
+technical detail.
+
+---
+
 ## [0.8.0] - 2026-08-02
 
 ### Added

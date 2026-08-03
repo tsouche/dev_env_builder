@@ -6,6 +6,59 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.8.1] - 2026-08-03
+
+### Added
+
+- **Exhaustive functional test suite** (`test-deployment.sh`), reviewed
+  across the whole environment (not just Graphify): several checks only
+  verified structural artifacts or binary presence, which let real bugs
+  hide behind green checkmarks. New functional checks:
+  - **QMD**: actually parses `qmd status` for a nonzero indexed-file count
+    and runs a real search, checking for native-binding crash signatures —
+    not just "does a symlink exist"
+  - **Rust**: actually compiles and runs a trivial binary — not just
+    `rustc --version`
+  - **Docker CLI**: actually runs `docker ps` through the bind-mounted
+    socket — not just checks the binary is on PATH
+  - **Claude Code**: checks the real exit code of `claude --version`
+    instead of falling back to a generic "installed" string on any failure
+    (this exact leniency is what let the Claude Code bug below go
+    undetected)
+- **`restart: unless-stopped` on `dev-container`** in
+  `docker-compose-dev.yml` — it previously had no restart policy and
+  needed a manual `docker start` after every Docker/host backend restart,
+  unlike `mongo-db`/`mongo-express` which already had this and always came
+  back automatically
+- **Welcome banner** on every new interactive terminal (new
+  `install_banner.sh`, run by `deploy-dev.ps1`): shows real tool versions
+  (Rust, Node, Bun, QMD, Graphify, Claude) and the new-project checklist
+  (`~/init_qmd.sh`, `~/init_graphify.sh`). Self-healing on every deploy for
+  the same reason as the Graphify bashrc helpers (`/home/rustdev` is a
+  persistent volume, only seeded from the image on first creation) — guarded
+  to only fire for real interactive shells, not scripted `docker exec` calls
+
+### Fixed
+
+- **QMD indexing had never actually worked**: `init_qmd.sh`'s "does an
+  index already exist" check (`qmd status | grep -qiE
+  "collection|document|chunk"`) always matched, because those words are
+  static section labels that `qmd status` prints regardless of whether
+  anything is indexed. This meant the script always took the "update
+  existing index" branch and `collection add` never ran on a fresh repo —
+  every deployment silently had a QMD index with 0 documents. Fixed by
+  trying `collection add` first and falling back to `update` only on an
+  explicit "already exists" error.
+- **Claude Code CLI was completely non-functional**: same native-module
+  install-scripts issue as QMD's sqlite binding (see
+  `build_base_dev_image/CHANGELOG.md`) — every `claude` invocation failed
+  with "claude native binary not installed." `claude --version` was masked
+  as a false pass in the old test suite via a lenient fallback string.
+  Fixed with `--allow-scripts=@anthropic-ai/claude-code` on the npm
+  install in `Dockerfile.rust-dev`.
+
+---
+
 ## [0.8.0] - 2026-08-02
 
 ### Added

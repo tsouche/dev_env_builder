@@ -1,5 +1,5 @@
 ﻿################################################################################
-# Development Environment Deployment Script - v0.8.0 (PowerShell)
+# Development Environment Deployment Script - v0.8.1 (PowerShell)
 # Deploys to local development laptop
 ################################################################################
 
@@ -670,6 +670,24 @@ try {
 } catch {
     Write-Warning-Custom "Graphify initialization encountered an issue: $_"
     Write-Host "   Run manually inside container: ~/init_graphify.sh" -ForegroundColor Yellow
+}
+
+Write-Host ""
+
+################################################################################
+# Install Welcome Banner
+################################################################################
+
+Write-Header "Installing Welcome Banner"
+
+docker cp "$ScriptDir\install_banner.sh" "$($env:CONTAINER_NAME):/home/rustdev/install_banner.sh" | Out-Null
+docker exec -u root $env:CONTAINER_NAME bash -c "dos2unix /home/rustdev/install_banner.sh 2>/dev/null || sed -i 's/\r//' /home/rustdev/install_banner.sh ; chmod +x /home/rustdev/install_banner.sh ; chown 1026:110 /home/rustdev/install_banner.sh"
+
+try {
+    docker exec -u rustdev $env:CONTAINER_NAME bash /home/rustdev/install_banner.sh
+    Write-Success "Welcome banner installed — shown on every new interactive terminal"
+} catch {
+    Write-Warning-Custom "Welcome banner installation encountered an issue: $_"
 }
 
 Write-Host ""

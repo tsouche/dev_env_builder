@@ -1,6 +1,14 @@
 ################################################################################
-# Rust Development Environment - Version 0.8.0
+# Rust Development Environment - Version 0.8.1
 # Shared Dockerfile for all environments (dev, test, prod)
+#
+# Changes in v0.8.1:
+# - Fixed QMD's native sqlite binding: npm 12's install-scripts hardening
+#   silently blocked better-sqlite3/node-llama-cpp/tree-sitter-* postinstall
+#   scripts, leaving every index/query operation crashing at runtime even
+#   though `qmd --version` and the CLI itself worked fine. Fixed with
+#   --allow-scripts on the npm install (see deploy_dev_env/Dockerfile.rust-dev
+#   for the analogous fix to Claude Code's install).
 #
 # Changes in v0.8.0:
 # - Added Graphify (AI code knowledge graph) next to QMD: uv + graphifyy[mcp]
@@ -305,8 +313,13 @@ RUN echo '' >> /home/${USERNAME}/.bashrc && \
 ################################################################################
 USER root
 
-# Install QMD globally using npm (npm registry has pre-built dist/; no bun.lock -> wrapper uses node)
-RUN npm install -g @tobilu/qmd
+# Install QMD globally using npm (npm registry has pre-built dist/; no bun.lock -> wrapper uses node).
+# --allow-scripts is required: npm 12's install-scripts hardening blocks
+# native-module postinstall/build scripts by default (better-sqlite3,
+# node-llama-cpp, tree-sitter-*) unless explicitly allow-listed, which left
+# QMD's sqlite backend unbuilt (native binding missing -> every index/query
+# failed at runtime, even though `qmd --version` and the CLI itself worked).
+RUN npm install -g --allow-scripts=better-sqlite3,node-llama-cpp,tree-sitter-go,tree-sitter-python,tree-sitter-rust,tree-sitter-typescript,tree-sitter-javascript @tobilu/qmd
 
 # Verify QMD installation
 RUN qmd --version || echo "QMD installed, waiting for first use to download models"

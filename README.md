@@ -84,6 +84,9 @@ This repository produces **two deliverables**:
 - MongoDB 7.0 + Mongo Express web UI
 - 3-container architecture orchestrated by Docker Compose
 - Idempotent deployment — run `deploy-dev.ps1` as many times as needed
+- `restart: unless-stopped` on the dev container — survives Docker/host restarts automatically
+- Welcome banner on every new terminal — tool versions + new-project checklist
+- Exhaustive functional test suite — verifies tools actually work (real index/query/compile), not just that binaries are present
 
 ---
 
@@ -132,6 +135,7 @@ deploy_dev_env/           # Deployment kit → local dev environment
   init_qmd.sh
   init_graphify.sh
   init_gstack.sh
+  install_banner.sh
   CLAUDE.md.template
 ```
 
@@ -157,4 +161,4 @@ This project was built with the assistance of **Claude** by Anthropic.
 
 ---
 
-**Current Version:** v0.8.0 · **Last Updated:** August 2, 2026
+**Current Version:** v0.8.1 · **Last Updated:** August 3, 2026

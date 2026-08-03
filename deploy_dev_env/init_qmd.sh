@@ -74,16 +74,28 @@ db: ${db_path}
 YMLEOF
     echo "  Config:  ~/.config/qmd/${project_name}.yml"
 
-    # 5. Index the project with per-repo --index flag
+    # 5. Index the project with per-repo --index flag.
+    #    Try 'collection add' first and only fall back to 'update' if the
+    #    collection already exists. `qmd status` always prints the words
+    #    "Documents"/"chunk" as static section labels regardless of whether
+    #    anything is actually indexed, so grepping status output for those
+    #    words (the old approach) always matched and 'collection add' never
+    #    ran on a truly fresh repo — this add-first approach is unambiguous.
     cd "$project_dir"
-    if qmd --index "$project_name" status 2>/dev/null | grep -qiE "collection|document|chunk"; then
-        echo "  Updating existing index..."
+    echo "  Indexing (collection add)..."
+    ADD_OUTPUT=$(qmd --index "$project_name" collection add . \
+        --name "$project_name" \
+        --mask "**/*.{rs,md,toml,json,yaml,yml,sh,py,js,ts,jsx,tsx,go,c,cpp,h,hpp}" 2>&1)
+    ADD_EXIT=$?
+    if [ $ADD_EXIT -eq 0 ]; then
+        echo "$ADD_OUTPUT"
+    elif echo "$ADD_OUTPUT" | grep -qi "already exists"; then
+        echo "  Collection already exists, updating..."
         qmd --index "$project_name" update
     else
-        echo "  Creating new index..."
-        qmd --index "$project_name" collection add . \
-            --name "$project_name" \
-            --mask "**/*.{rs,md,toml,json,yaml,yml,sh,py,js,ts,jsx,tsx,go,c,cpp,h,hpp}"
+        echo "  ERROR: qmd collection add failed:"
+        echo "$ADD_OUTPUT"
+        return 1
     fi
     echo "  Indexed."
 

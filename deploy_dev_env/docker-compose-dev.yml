@@ -1,4 +1,4 @@
-# Docker Compose for Development Environment - v0.8.0
+# Docker Compose for Development Environment - v0.8.1
 # Uses pre-built base image tsouche/base_rust_dev:latest (v0.8.0+)
 # Local laptop deployment with SSH and debugging tools
 # Docker CLI available inside dev container - binaries copied via docker cp
@@ -9,6 +9,8 @@
 #       volume, meant to be committed to git) - no new volume needed, no
 #       GGUF models, code-only extraction is pure AST + graph (zero LLM cost)
 # gstack skills at ~/.claude/skills/gstack (persistent via .claude volume)
+# dev-container: restart: unless-stopped (v0.8.1+) - survives Docker/host
+#       backend restarts automatically, same as mongo-db/mongo-express already did
 
 services:
   # Development Container
@@ -20,10 +22,11 @@ services:
         - GIT_USER_NAME=${GIT_USER_NAME}
         - GIT_USER_EMAIL=${GIT_USER_EMAIL}
     image: dev-container:latest
-    
+
     container_name: ${CONTAINER_NAME:-dev-container}
     hostname: ${HOSTNAME:-dev-host}
-    
+    restart: unless-stopped
+
     ports:
       - "${SSH_PORT:-2222}:22"
       - "${APP_PORT:-5665}:8080"

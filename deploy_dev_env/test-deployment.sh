@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# Deployment Test Suite - v0.8.0
+# Deployment Test Suite - v0.8.1
 # Validates all components of the dev environment after deployment.
 # Called automatically by deploy-dev.ps1 after initialization.
 #
@@ -131,6 +131,21 @@ else
     fail "git" "not found in PATH"
 fi
 
+# FUNCTIONAL: actually compile and run a trivial program, not just check
+# `rustc --version`. Catches a broken toolchain (missing linker, corrupt
+# ~/.cargo, etc.) that a version-string check alone would miss.
+RUST_BUILD_DIR=$(mktemp -d)
+cat > "$RUST_BUILD_DIR/hello.rs" << 'EOF'
+fn main() { println!("rust-build-ok"); }
+EOF
+if rustc "$RUST_BUILD_DIR/hello.rs" -o "$RUST_BUILD_DIR/hello" 2>/dev/null && \
+   [ "$("$RUST_BUILD_DIR/hello" 2>/dev/null)" = "rust-build-ok" ]; then
+    pass "Rust functional compile + run" "rustc built and ran a real binary"
+else
+    fail "Rust functional compile + run" "compile or execution failed — toolchain may be broken"
+fi
+rm -rf "$RUST_BUILD_DIR"
+
 
 ################################################################################
 section "QMD (Query Markup Documents)"
@@ -190,6 +205,38 @@ if [ "$SYMLINK_OK" -gt 0 ] && [ "$SYMLINK_BROKEN" -eq 0 ]; then
     pass "Symlinks → {repo}/.qmd/index.sqlite" "$SYMLINK_OK valid"
 elif [ "$SYMLINK_BROKEN" -gt 0 ]; then
     warn "Symlinks → {repo}/.qmd/index.sqlite" "$SYMLINK_BROKEN broken, $SYMLINK_OK ok — re-run ~/init_qmd.sh"
+fi
+
+# FUNCTIONAL: each per-repo index must actually have indexed documents, and a
+# real search must return without the native sqlite binding crashing. A
+# structurally-valid symlink/config is not enough — it can exist even when
+# `qmd collection add` silently never ran or the native module is unbuilt
+# (both have happened in this project's history; see CHANGELOG v0.8.1).
+QMD_FUNC_OK=0
+QMD_FUNC_BROKEN=0
+for symlink in "$HOME"/.cache/qmd/*.sqlite; do
+    [ -L "$symlink" ] || continue
+    project_name=$(basename "$symlink" .sqlite)
+    STATUS_OUT=$(qmd --index "$project_name" status 2>&1)
+    FILES_INDEXED=$(echo "$STATUS_OUT" | grep -oE "Total:[[:space:]]*[0-9]+" | grep -oE "[0-9]+" | head -1)
+    if [ -z "$FILES_INDEXED" ]; then FILES_INDEXED=0; fi
+    if [ "$FILES_INDEXED" -gt 0 ]; then
+        # Confirm a real query round-trips without the native binding crashing
+        if qmd --index "$project_name" search "." 2>&1 | grep -qi "SqliteError\|could not locate the bindings\|cannot find module"; then
+            QMD_FUNC_BROKEN=$((QMD_FUNC_BROKEN+1))
+            warn "  qmd functional index+search ($project_name)" "search crashed — native sqlite binding likely unbuilt"
+        else
+            QMD_FUNC_OK=$((QMD_FUNC_OK+1))
+        fi
+    else
+        QMD_FUNC_BROKEN=$((QMD_FUNC_BROKEN+1))
+        warn "  qmd functional index ($project_name)" "0 files indexed — run: cd <repo> && qmd --index $project_name collection add . --name $project_name"
+    fi
+done
+if [ "$QMD_FUNC_OK" -gt 0 ] && [ "$QMD_FUNC_BROKEN" -eq 0 ]; then
+    pass "QMD functional index + search" "$QMD_FUNC_OK repo(s) indexed and queryable"
+elif [ "$QMD_FUNC_OK" -gt 0 ] || [ "$QMD_FUNC_BROKEN" -gt 0 ]; then
+    fail "QMD functional index + search" "$QMD_FUNC_OK ok, $QMD_FUNC_BROKEN broken"
 fi
 
 # Each per-repo index must have a .mcp.json pointing at 'qmd --index {name} mcp'
@@ -481,10 +528,18 @@ fi
 section "Claude Code"
 ################################################################################
 
-# claude CLI
+# claude CLI — check the actual exit code, not just PATH presence. The
+# package can be "installed" (binary on PATH) while completely non-functional
+# if npm's install-scripts hardening blocked install.cjs from downloading the
+# platform-native binary (this happened for real — see CHANGELOG v0.8.1).
 if command -v claude &>/dev/null; then
-    CLAUDE_VER=$(claude --version 2>/dev/null | head -1 | tr -d '\r')
-    pass "claude CLI" "${CLAUDE_VER:-installed}"
+    CLAUDE_VER=$(claude --version 2>&1)
+    CLAUDE_EXIT=$?
+    if [ $CLAUDE_EXIT -eq 0 ] && [ -n "$CLAUDE_VER" ]; then
+        pass "claude CLI" "$(echo "$CLAUDE_VER" | head -1 | tr -d '\r')"
+    else
+        fail "claude CLI" "exit $CLAUDE_EXIT — native binary missing? ${CLAUDE_VER:0:80}"
+    fi
 else
     warn "claude CLI" "not installed — run: npm install -g @anthropic-ai/claude-code"
 fi
@@ -532,6 +587,17 @@ if command -v docker &>/dev/null; then
     pass "Docker CLI" "v$DOCKER_VER"
 else
     warn "Docker CLI" "not in PATH"
+fi
+
+# FUNCTIONAL: the bind-mounted socket must actually work, not just the CLI
+# binary being present — a permission/mount issue would leave the binary
+# installed but every real docker command failing.
+if command -v docker &>/dev/null; then
+    if docker ps &>/dev/null; then
+        pass "Docker socket functional" "docker ps succeeded via bind-mounted socket"
+    else
+        fail "Docker socket functional" "docker ps failed — socket mount or permissions broken"
+    fi
 fi
 
 # SSH server running

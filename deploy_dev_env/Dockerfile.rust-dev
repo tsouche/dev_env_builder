@@ -1,5 +1,5 @@
 ################################################################################
-# SET Backend Development Environment - v0.8.0
+# SET Backend Development Environment - v0.8.1
 # Base: tsouche/base_rust_dev:latest (v0.8.0+)
 #
 # The base image already provides:
@@ -50,8 +50,13 @@ RUN if [ -n "${GIT_USER_NAME}" ] && [ -n "${GIT_USER_EMAIL}" ]; then \
 # AI Agentic Tools - Claude Code
 ################################################################################
 USER root
-# Installation du CLI Claude Code (toujours latest au build)
-RUN npm install -g @anthropic-ai/claude-code@latest
+# Installation du CLI Claude Code (toujours latest au build).
+# --allow-scripts is required: npm 12's install-scripts hardening blocks the
+# postinstall script (install.cjs, which downloads the platform-native
+# binary) by default, leaving `claude` completely non-functional even
+# though the package appears installed (same root cause as QMD's native
+# sqlite binding issue in the base image — see build_base_dev_image).
+RUN npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@latest
 
 # S'assurer que les permissions du home sont correctes pour la config .claude
 RUN chown -R 1026:110 /home/rustdev
@@ -89,6 +94,13 @@ USER root
 COPY init_graphify.sh /home/rustdev/init_graphify.sh
 RUN chmod +x /home/rustdev/init_graphify.sh && \
     chown 1026:110 /home/rustdev/init_graphify.sh
+
+################################################################################
+# Welcome Banner (deployment-specific)
+################################################################################
+COPY install_banner.sh /home/rustdev/install_banner.sh
+RUN chmod +x /home/rustdev/install_banner.sh && \
+    chown 1026:110 /home/rustdev/install_banner.sh
 
 ################################################################################
 # gstack - Claude Code Skills Framework

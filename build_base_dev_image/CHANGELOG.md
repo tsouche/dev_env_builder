@@ -1,5 +1,42 @@
 # Changelog for BuildDevImage scripts
 
+## Version 0.8.1 (August 3, 2026)
+
+### 🐛 QMD native sqlite binding fix
+
+**QMD's indexing/search had never actually worked — found via exhaustive functional testing**
+
+#### Changes
+
+- **Fixed `npm install -g @tobilu/qmd`**: added
+  `--allow-scripts=better-sqlite3,node-llama-cpp,tree-sitter-go,tree-sitter-python,tree-sitter-rust,tree-sitter-typescript,tree-sitter-javascript`.
+  npm 12's install-scripts hardening silently blocks native-module
+  postinstall/build scripts by default unless explicitly allow-listed. QMD's
+  CLI and `--version` worked fine (pure JS), but every real index or search
+  operation crashed with `SqliteError: unable to open database file` /
+  "could not locate the bindings file" — completely invisible unless you
+  actually tried to index and query something, which the previous test
+  suite never did (it only checked structural artifacts: symlinks,
+  `.mcp.json`, config files — never that indexing actually produced
+  content).
+
+#### Technical Details
+
+- Discovered empirically: `docker exec`-ed into the running container and
+  manually ran the exact `collection add` / `status` / `search` sequence
+  a real user would, rather than trusting `qmd --version` succeeding as a
+  proxy for "QMD works"
+- Verified fix end-to-end: real GGUF model download (~333MB
+  embeddinggemma-300M), real document indexing, real vector embeddings,
+  real search results returned — see `deploy_dev_env/CHANGELOG.md` for the
+  companion `init_qmd.sh` logic bug that also had to be fixed for indexing
+  to actually trigger
+- Companion fix in `deploy_dev_env/Dockerfile.rust-dev`: Claude Code's own
+  npm install had the identical issue (native binary missing), found while
+  building the welcome-banner feature — same root cause, same fix pattern
+
+---
+
 ## Version 0.8.0 (August 2, 2026)
 
 ### 🕸️ Graphify — AI Code Knowledge Graph (next to QMD)
