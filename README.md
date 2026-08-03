@@ -1,4 +1,4 @@
-# Rust Development Environment Builder
+# Rust Development Environment Builder with MongoDB
 
 Fully containerized, AI-augmented Rust development environment with MongoDB, deployed via a single PowerShell command on Windows.
 
