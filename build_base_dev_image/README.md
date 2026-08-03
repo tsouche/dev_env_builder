@@ -56,6 +56,9 @@ Default: `latest` tag only (if no version specified)
   - **Bun runtime** - v0.6.10+ for QMD (AI-optimized code indexing)
   - **uv + Graphify** - v0.8.0+ for AI code knowledge graph (structural/call-graph
     search, complementing QMD's content/semantic search); no GGUF models needed
+  - **QMD native sqlite binding fix** - v0.8.1+: `npm install --allow-scripts=...`
+    (npm 12's install-scripts hardening otherwise silently blocks the native
+    module build; QMD's CLI worked but every real index/search crashed)
   - Common dev tools (curl, wget, git, build-essential, libssl-dev, pkg-config, etc.)
   - **Native glibc builds** - v0.6.6+:
     - Default `x86_64-unknown-linux-gnu` target (native)

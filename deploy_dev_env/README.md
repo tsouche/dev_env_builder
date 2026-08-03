@@ -27,7 +27,7 @@
 
 - **Platform**: Windows with Docker Desktop
 - **Container**: Rust development environment with SSH access
-- **Base Image**: `tsouche/base_rust_dev:v0.6.9` (now includes ca-certificates and updated certs)
+- **Base Image**: `tsouche/base_rust_dev:v0.8.0` (see [build_base_dev_image/README.md](../build_base_dev_image/README.md) for what it includes)
 - **Services**: Dev container + MongoDB + Mongo Express
 - **Access**: VS Code Remote SSH to localhost
 
@@ -43,6 +43,15 @@
   - Run Docker commands without leaving dev environment
   - Automatic Ubuntu container testing via `docker cp`
   - Proper group permissions for Docker socket access
+- **`restart: unless-stopped`** (v0.8.1+): the dev container survives a
+  Docker/host backend restart automatically, same as MongoDB/Mongo Express
+- **Welcome banner** (v0.8.1+): every new interactive terminal shows real
+  tool versions and the new-project checklist (`~/init_qmd.sh`,
+  `~/init_graphify.sh`) — see `install_banner.sh`, self-healing on every
+  deploy for the same reason as the QMD/Graphify bashrc helpers
+- **QMD** — AI-optimized semantic code search, see §3.5 below and [QMD.md](../QMD.md)
+- **Graphify** — AI code knowledge graph, next to QMD, see §3.6 below and [GRAPHIFY.md](../GRAPHIFY.md)
+- **gstack** — Claude Code skills framework (28+ slash commands)
 - Build tools (gcc, cmake, pkg-config, libssl-dev)
 - MongoDB Shell (mongosh)
 - GitHub CLI (gh)
@@ -245,7 +254,7 @@ cargo build
 
 ## Deployment Scripts
 
-### deploy-dev.ps1 (v0.6.7)
+### deploy-dev.ps1 (v0.8.1)
 
 **Purpose**: Complete environment deployment
 
@@ -262,7 +271,14 @@ cargo build
 - Project directory handling (keep/delete/cancel)
 - Directory structure creation
 - MongoDB initialization
-- Docker Compose service startup (3 containers)
+- Docker Compose service startup (3 containers, dev-container now
+  `restart: unless-stopped`)
+- Claude Code MCP configuration
+- QMD initialization (`init_qmd.sh`)
+- Graphify initialization (`init_graphify.sh`)
+- Welcome banner installation (`install_banner.sh`)
+- gstack Skills Framework initialization (`init_gstack.sh`)
+- Runs the full deployment test suite (`test-deployment.sh`)
 
 **Interactive Prompts:**
 
@@ -1132,12 +1148,18 @@ rm -rf ~/.vscode-server
 ### Local Project Structure
 
 ```sh
-C:\path\to\set_backend\src\env_dev\
-├── .env                       # Environment configuration (v0.6.7)
-├── Dockerfile                 # Dev container definition
-├── docker-compose-dev.yml     # Services orchestration (v0.6.7)
-├── deploy-dev.ps1             # Deployment script (v0.6.7)
-├── cleanup.ps1                # Cleanup script (v0.6.7)
+deploy_dev_env/
+├── .env                       # Environment configuration (v0.8.1)
+├── Dockerfile.rust-dev         # Dev container definition
+├── docker-compose-dev.yml     # Services orchestration (v0.8.1)
+├── deploy-dev.ps1             # Deployment script (v0.8.1)
+├── cleanup.ps1                # Cleanup script
+├── init_qmd.sh                # QMD per-repo initialization (v0.8.1: indexing fix)
+├── init_graphify.sh           # Graphify per-repo initialization
+├── init_gstack.sh             # gstack skills framework initialization
+├── install_banner.sh          # Welcome banner installer (v0.8.1+)
+├── test-deployment.sh         # Deployment test suite (v0.8.1: functional checks)
+├── CLAUDE.md.template         # Global Claude Code config (QMD/Graphify routing)
 ├── 01-init-db.js              # MongoDB initialization (auto-generated)
 ├── authorized_keys            # SSH public key (auto-generated)
 └── README.md                  # This guide

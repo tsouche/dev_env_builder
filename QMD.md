@@ -15,14 +15,27 @@ This file is a short reference for how it actually works today.
 ## Where it comes from
 
 - **Binary**: installed globally in the base image via
-  `npm install -g @tobilu/qmd` (see
-  [build_base_dev_image/Dockerfile.base_rust_dev](build_base_dev_image/Dockerfile.base_rust_dev)).
+  `npm install -g --allow-scripts=better-sqlite3,node-llama-cpp,tree-sitter-go,tree-sitter-python,tree-sitter-rust,tree-sitter-typescript,tree-sitter-javascript @tobilu/qmd`
+  (see [build_base_dev_image/Dockerfile.base_rust_dev](build_base_dev_image/Dockerfile.base_rust_dev)).
   Node 22 is required by QMD's engine constraint. Bun is also present, but the
   npm package ships a pre-built `dist/`, so the QMD wrapper runs under node.
+  The `--allow-scripts` list is required (added in v0.8.1): npm 12's
+  install-scripts hardening silently blocks native-module postinstall
+  scripts by default, which left QMD's sqlite backend unbuilt — the CLI and
+  `--version` worked fine, but every real index or search crashed at
+  runtime. Easy to miss without actually indexing and querying something,
+  which is why `test-deployment.sh`'s QMD checks are functional
+  (real index + search), not just structural (see its "Graphify" section
+  comment for the same lesson applied there first).
 - **Per-project setup**: [deploy_dev_env/init_qmd.sh](deploy_dev_env/init_qmd.sh),
   copied fresh into the container on every deploy and run automatically by
   `deploy-dev.ps1`, and again on first interactive shell login via the
-  `qmd-auto-init` bashrc function.
+  `qmd-auto-init` bashrc function. Indexing tries `collection add` first and
+  only falls back to `update` on an explicit "already exists" error (fixed
+  in v0.8.1 — the previous approach grepped `qmd status` output for words
+  that are always present as static section labels regardless of whether
+  anything was indexed, so `collection add` never actually ran on a fresh
+  repo).
 
 ## Per-repo index model
 
@@ -56,7 +69,8 @@ Nothing to install. After deployment:
 pulling changes. It:
 
 1. Creates `.qmd/`, the cache symlink, and the named config for each repo
-2. Creates or updates the index (`qmd --index {name} collection add|update`)
+2. Indexes the repo: tries `qmd --index {name} collection add`, falls back
+   to `qmd --index {name} update` only if the collection already exists
 3. Writes/refreshes `{repo}/.mcp.json`
 4. Adds a `qmd-{name}` alias to `~/.bashrc`
 5. Generates vector embeddings (`qmd --index {name} embed`) — downloads the
