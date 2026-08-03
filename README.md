@@ -163,4 +163,4 @@ This project was built with the assistance of **Claude** by Anthropic.
 
 ---
 
-**Current Version:** v0.8.2 · **Last Updated:** August 3, 2026
+**Current Version:** v0.8.3 · **Last Updated:** August 4, 2026

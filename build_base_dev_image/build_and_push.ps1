@@ -18,7 +18,8 @@ $DOCKERFILE = "Dockerfile.base_rust_dev"
 $REQUIRED_FILES = @(
     "authorized_keys.template",
     "install_vscode_extensions.sh",
-    "devcontainer.json"
+    "devcontainer.json",
+    "docker-entrypoint.sh"
 )
 
 # Validate version format
@@ -78,7 +79,7 @@ Write-Host ""
 Write-Host "[2/5] Checking Docker..." -ForegroundColor Yellow
 $dockerCheck = docker info 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Docker engine is not responding. Is Rancher Desktop started?" -ForegroundColor Red
+    Write-Host "ERROR: Docker engine is not responding. Is Docker Desktop started?" -ForegroundColor Red
     exit 1
 }
 Write-Host "Docker is running" -ForegroundColor Green
@@ -112,7 +113,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "OK Build successful" -ForegroundColor Green
 Write-Host ""
 
-Write-Host "[4/7] Verifying Alpine runtime compatibility..." -ForegroundColor Yellow
+Write-Host "[4/6] Verifying Alpine runtime compatibility..." -ForegroundColor Yellow
 
 $TEST_CONTAINER = "rust-dev-test-$((Get-Date).Ticks)"
 $ALPINE_CONTAINER = "alpine-test-$((Get-Date).Ticks)"
@@ -197,37 +198,37 @@ fn main() {
 }
 Write-Host ""
 
-# Check DockerHub login
-Write-Host "[5/7] Checking DockerHub login..." -ForegroundColor Yellow
-$dockerInfo = docker info 2>&1 | Out-String
-if ($dockerInfo -match "Username:\s+$DOCKERHUB_USER") {
-    Write-Host "OK Already logged in as $DOCKERHUB_USER" -ForegroundColor Green
-} else {
-    Write-Host "Not logged in. Please log in to DockerHub..." -ForegroundColor Yellow
-    docker login
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: DockerHub login failed" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "OK Successfully logged in to DockerHub" -ForegroundColor Green
-}
-Write-Host ""
-
 # Push to DockerHub
-Write-Host "[6/7] Pushing to DockerHub..." -ForegroundColor Yellow
+# Note: we don't gate this on a `docker info` username check — some Docker
+# CLI/backend combinations (e.g. Docker Desktop's credential-helper-based
+# auth) never populate the legacy "Username:" field even when genuinely
+# signed in, which would make that check always report "not logged in" and
+# force an interactive `docker login` that fails non-interactively. Instead,
+# just push directly (stored credentials are used automatically) and only
+# fall back to `docker login` if a push actually gets rejected.
+Write-Host "[5/6] Pushing to DockerHub..." -ForegroundColor Yellow
 foreach ($tag in $TAGS) {
     Write-Host "  Pushing ${FULL_IMAGE}:${tag}..." -ForegroundColor Cyan
     docker push "${FULL_IMAGE}:${tag}"
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Push failed for tag $tag" -ForegroundColor Red
-        exit 1
+        Write-Host "Push failed - attempting docker login..." -ForegroundColor Yellow
+        docker login
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: DockerHub login failed" -ForegroundColor Red
+            exit 1
+        }
+        docker push "${FULL_IMAGE}:${tag}"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: Push failed for tag $tag" -ForegroundColor Red
+            exit 1
+        }
     }
 }
 Write-Host "OK Push successful" -ForegroundColor Green
 Write-Host ""
 
 # Summary
-Write-Host "[7/7] Build Summary" -ForegroundColor Yellow
+Write-Host "[6/6] Build Summary" -ForegroundColor Yellow
 Write-Host "================================" -ForegroundColor Green
 Write-Host "  Build Complete!" -ForegroundColor Green
 Write-Host "================================" -ForegroundColor Green

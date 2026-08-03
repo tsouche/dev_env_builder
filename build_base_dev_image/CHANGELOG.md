@@ -1,5 +1,34 @@
 # Changelog for BuildDevImage scripts
 
+## Version 0.8.3 (August 4, 2026)
+
+### 🔧 Docker socket portability across backends
+
+**Fixed the dev-container's Docker CLI being unusable under Docker Desktop**
+
+#### Changes
+
+- **New `docker-entrypoint.sh`**, wired in via `ENTRYPOINT`: at every
+  container start, `chgrp docker /var/run/docker.sock` (+ `chmod g+rw`)
+  before handing off to `sshd`. Different Docker backends expose the
+  bind-mounted `/var/run/docker.sock` under different host GIDs — Rancher
+  Desktop's matched this image's `docker` group (999), but Docker Desktop's
+  Linux VM owns the socket as `root:root` instead, so `rustdev` (a member of
+  `docker`, not `root`) got `permission denied` on every `docker` command
+  despite the socket being correctly bind-mounted. Found via
+  `test-deployment.sh`'s "Docker socket functional" check after migrating
+  from Rancher Desktop to Docker Desktop.
+- **`build_and_push.ps1`**: added `docker-entrypoint.sh` to the
+  required-files check; replaced the `docker info`-based "already logged
+  in" pre-check (which never populates the legacy `Username:` field under
+  Docker Desktop's credential-helper auth, always forcing a doomed
+  non-interactive `docker login`) with a push-first approach — push
+  directly using stored credentials, only prompt `docker login` if a push
+  is actually rejected; updated the "Is Rancher Desktop started?" hint to
+  "Is Docker Desktop started?".
+
+---
+
 ## Version 0.8.2 (August 3, 2026)
 
 ### 🧹 Removed GitHub Copilot from default extensions

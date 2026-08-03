@@ -1,6 +1,12 @@
 ################################################################################
-# Rust Development Environment - Version 0.8.2
+# Rust Development Environment - Version 0.8.3
 # Shared Dockerfile for all environments (dev, test, prod)
+#
+# Changes in v0.8.3:
+# - Added docker-entrypoint.sh (ENTRYPOINT): fixes rustdev's docker CLI
+#   access to the bind-mounted /var/run/docker.sock under Docker Desktop,
+#   whose Linux VM owns the socket as root:root instead of matching this
+#   image's docker group (999) the way Rancher Desktop's VM did.
 #
 # Changes in v0.8.2:
 # - Removed github.copilot / github.copilot-chat from the default VS Code
@@ -466,4 +472,8 @@ RUN mkdir -p /workspace && chown ${USER_UID}:${USER_GID} /workspace
 ################################################################################
 # Container Startup
 ################################################################################
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["/usr/sbin/sshd", "-D"]

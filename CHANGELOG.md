@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.3] - 2026-08-04
+
+### Fixed
+
+- Docker socket inside `dev-container` was unusable for the `rustdev` user
+  after migrating from Rancher Desktop to Docker Desktop — different
+  backends expose `/var/run/docker.sock` under different host GIDs. Fixed
+  with a new `docker-entrypoint.sh` that re-groups the socket at every
+  container start, regardless of backend. Applied identically to
+  [`dev_env_builder_postgresql`](https://github.com/tsouche/dev_env_builder_postgresql).
+- `build_and_push.ps1`'s DockerHub login pre-check could falsely report
+  "not logged in" under Docker Desktop (its `docker info` doesn't populate
+  the legacy `Username:` field), forcing a non-interactive `docker login`
+  that always fails. Replaced with a push-first approach.
+
+See [build_base_dev_image/CHANGELOG.md](build_base_dev_image/CHANGELOG.md) for full detail.
+
+---
+
 ## [0.8.2] - 2026-08-03
 
 ### Changed
