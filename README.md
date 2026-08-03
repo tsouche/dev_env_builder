@@ -8,9 +8,9 @@ Fully containerized, AI-augmented Rust development environment with MongoDB, dep
 
 This repository produces **two deliverables**:
 
-1. **A shared base Docker image** ([`tsouche/base_rust_dev`](https://hub.docker.com/r/tsouche/base_rust_dev)) — published to DockerHub. Contains all tooling: Rust stable, Node.js 20, Bun, Playwright/Chromium, QMD, SSH server, MongoDB shell, GitHub CLI, Docker CLI.
+1. **A shared base Docker image** ([`tsouche/base_rust_dev`](https://hub.docker.com/r/tsouche/base_rust_dev)) — published to DockerHub. Contains all tooling: Rust stable, Node.js 22, Bun, Playwright/Chromium, QMD, uv + Graphify, SSH server, MongoDB shell, GitHub CLI, Docker CLI.
 
-2. **A deployment kit** — PowerShell scripts + Docker Compose that build a project-specific image on top of the base, spin up 3 containers (dev, MongoDB, Mongo Express), and configure everything end-to-end including SSH access, Claude Code, gstack skills, and QMD indexing.
+2. **A deployment kit** — PowerShell scripts + Docker Compose that build a project-specific image on top of the base, spin up 3 containers (dev, MongoDB, Mongo Express), and configure everything end-to-end including SSH access, Claude Code, gstack skills, QMD indexing, and Graphify code graphs.
 
 ---
 
@@ -19,7 +19,8 @@ This repository produces **two deliverables**:
 ```doc
 ┌─────────────────────────────────────────────────────────────────┐
 │  DockerHub: tsouche/base_rust_dev (shared base image, ~1.5 GB)  │
-│  Ubuntu 22.04 · Rust · Node.js · Bun · Playwright · QMD · SSH   │
+│  Ubuntu 22.04 · Rust · Node.js · Bun · Playwright · SSH         │
+│  QMD (semantic search) · Graphify (code knowledge graph)        │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ FROM
 ┌──────────────────────────▼──────────────────────────────────────┐
@@ -42,6 +43,9 @@ This repository produces **two deliverables**:
 - `~/.claude/` — bind-mounted from Windows (`C:/rustdev/claude_config`). Survives all redeployments. Holds Claude history, gstack skills, MCP config.
 - QMD GGUF models (~2 GB) — shared across projects, never re-downloaded.
 - Per-project named volumes — home directory and QMD index isolated per project.
+- Graphify needs no dedicated volume — code-only extraction is pure AST + graph
+  traversal (zero LLM cost, no GGUF models); its per-repo output lives inside the
+  project's own `/workspace` mount and is meant to be committed to git.
 
 ---
 
@@ -66,6 +70,12 @@ This repository produces **two deliverables**:
   - 60-80% reduction in Claude token usage via semantic search (BM25 + vectors)
   - Persistent knowledge base across sessions
   - Smart auto-detection of projects in `~/` and `/workspace`
+- **Graphify** — AI code knowledge graph, next to QMD (see [GRAPHIFY.md](GRAPHIFY.md))
+  - Structural search — call graphs, path tracing, "what implements this interface" —
+    the questions QMD's content search can't answer
+  - Zero LLM cost: code-only extraction is pure tree-sitter AST + graph traversal,
+    no API key or GGUF models needed
+  - Per-repo `graph.json`/`GRAPH_REPORT.md` meant to be committed to git
 - **MCP Integration** — automatic configuration for Claude Code
 
 **Infrastructure**
@@ -120,6 +130,7 @@ deploy_dev_env/           # Deployment kit → local dev environment
   deploy-dev.ps1          # Main entry point
   cleanup.ps1
   init_qmd.sh
+  init_graphify.sh
   init_gstack.sh
   CLAUDE.md.template
 ```
@@ -130,6 +141,8 @@ deploy_dev_env/           # Deployment kit → local dev environment
 
 - **Deployment guide**: [deploy_dev_env/README.md](deploy_dev_env/README.md)
 - **Base image builder**: [build_base_dev_image/README.md](build_base_dev_image/README.md)
+- **QMD reference**: [QMD.md](QMD.md)
+- **Graphify reference**: [GRAPHIFY.md](GRAPHIFY.md)
 - **Changelogs**: [Root](CHANGELOG.md) · [Base image](build_base_dev_image/CHANGELOG.md) · [Deploy](deploy_dev_env/CHANGELOG.md)
 
 ---
@@ -144,4 +157,4 @@ This project was built with the assistance of **Claude** by Anthropic.
 
 ---
 
-**Current Version:** v0.7.0 · **Last Updated:** March 24, 2026
+**Current Version:** v0.8.0 · **Last Updated:** August 2, 2026

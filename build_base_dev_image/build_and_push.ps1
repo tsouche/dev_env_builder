@@ -1,5 +1,5 @@
 ################################################################################
-# Build and Push Rust Dev Container Image (Windows) - v0.6.9
+# Build and Push Rust Dev Container Image (Windows) - v0.8.0
 # Usage: .\build_and_push.ps1 [VERSION]
 ################################################################################
 

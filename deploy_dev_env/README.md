@@ -2,9 +2,9 @@
 
 **Complete containerized Rust development environment with MongoDB**
 
-**Current Version:** v0.7.0
-**Base Image:** `tsouche/base_rust_dev:v0.7.0`  
-**Last Updated:** March 24, 2026
+**Current Version:** v0.8.0
+**Base Image:** `tsouche/base_rust_dev:v0.8.0`  
+**Last Updated:** August 2, 2026
 
 *For version history and changelog, see [CHANGELOG.md](CHANGELOG.md)*
 
@@ -640,6 +640,110 @@ by `init_qmd.sh` for every indexed project.)
 - Check `{repo}/.mcp.json` exists and points at `qmd --index {name} mcp`
 - Check `~/.claude/CLAUDE.md` exists and contains the QMD-first rule
 - Verify the fallback MCP entry: `cat ~/.claude.json | grep qmd`
+
+### 3.6. Graphify - AI Code Knowledge Graph
+
+**Graphify** builds a structural code graph (tree-sitter AST + call-graph
+traversal + community detection) for each project, next to QMD — see
+[GRAPHIFY.md](../GRAPHIFY.md) for the full reference. This section covers
+the deployment-specific mechanics; QMD's section above covers the analogous
+setup for content/semantic search.
+
+#### Benefits
+
+- Answers structural questions QMD's content search cannot: "what calls X",
+  path tracing between two symbols, "what implements this interface"
+- Zero LLM cost for code-only extraction — pure tree-sitter AST + graph
+  traversal, no API key or GGUF models needed
+- No dedicated volume required (unlike QMD's ~2GB model volume)
+
+#### Per-repo model (path-based, not flag-based)
+
+Unlike QMD's `--index {name}` flag, Graphify scopes to `./graphify-out/`
+relative to the current directory — no per-project alias needed, just `cd`
+into a repo. `init_graphify.sh` scans `~/` and `/workspace` for git repos
+and, for each one, creates:
+
+| Artifact | Location | Committed to git? |
+| --- | --- | --- |
+| Graph | `{repo}/graphify-out/graph.json` | Yes |
+| Architecture report | `{repo}/graphify-out/GRAPH_REPORT.md` | Yes |
+| Interactive viewer | `{repo}/graphify-out/graph.html` | Yes |
+| Run metadata | `{repo}/graphify-out/cost.json` | No (git-ignored) |
+| Claude Code skill | `{repo}/.claude/skills/graphify/SKILL.md` | Yes |
+| Claude Code hook | `{repo}/.claude/settings.json` (PreToolUse) | Yes |
+| Git hooks | `{repo}/.git/hooks/post-commit`, `post-checkout` | N/A |
+
+Committing `graph.json`/`GRAPH_REPORT.md`/`graph.html` is Graphify's own
+recommended team workflow — the deliberate opposite of QMD's fully
+git-ignored SQLite index.
+
+**Initialization happens automatically**, the same two ways as QMD:
+
+1. **During Deployment** — `deploy-dev.ps1` copies the latest
+   `init_graphify.sh` into the container and runs it right after QMD's
+   initialization (completes in seconds if no repo is cloned yet)
+2. **On demand** after cloning a new repo:
+
+   ```bash
+   ~/init_graphify.sh
+   # or, from the alias:
+   graphify-reindex
+   ```
+
+The script is fully idempotent, and self-heals its `graphify-status`/
+`graphify-reindex` bashrc helpers on every run (protects against the
+home-volume-shadowing issue described in the Troubleshooting section below).
+
+#### Automatic Claude Code Integration
+
+Each repo gets its own project-scoped skill and `PreToolUse` hook via
+`graphify claude install --project` — no manual configuration. The global
+rule telling Claude Code when to reach for Graphify vs QMD lives in
+`CLAUDE.md.template`: QMD for content/semantic questions, Graphify for
+structural questions, `GRAPH_REPORT.md` for architecture orientation.
+
+#### Daily Usage
+
+```bash
+graphify-status                  # graph status for every repo with a graphify-out/
+graphify-reindex                 # alias for ~/init_graphify.sh — rescans for new repos
+
+# From inside a project directory (no --index flag needed):
+graphify query "what connects auth to the database?"
+graphify path "UserService" "DatabasePool"
+graphify explain "RateLimiter"
+```
+
+#### How It Works
+
+1. `graphify extract . --code-only [--cargo]` builds the AST + call graph
+2. `graphify cluster-only .` runs community detection and writes
+   `GRAPH_REPORT.md`/`graph.html` — fully offline (generic "Community N"
+   labels without an LLM backend configured, but still complete)
+3. Claude Code consults the graph via its project-scoped skill/hook instead
+   of grepping through files for structural questions
+4. The git `post-commit` hook re-extracts automatically after each commit
+
+#### Troubleshooting
+
+**"graphify: command not found" after redeploying an existing environment**
+
+- This is the home-volume-shadowing issue: `/home/rustdev` is a persistent
+  named volume, and Docker only seeds a volume's content from the image the
+  *first* time it's created. `uv`/`graphify` are installed into
+  `/usr/local` specifically to avoid this, but if you see it anyway, rebuild
+  the base image and recreate the container
+  (`docker compose up -d --force-recreate dev-container`)
+
+**"No git repositories found" during initialization**
+
+- Clone a git repository first, then re-run: `~/init_graphify.sh`
+
+**`--cargo` fails with a `tomli` error**
+
+- Rebuild the base image — `tomli` is a required dependency for `--cargo`
+  on Python 3.10, added at the base-image level
 
 ### 4. Build for Ubuntu Staging/Production Deployment
 

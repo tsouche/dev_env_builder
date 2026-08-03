@@ -1,5 +1,39 @@
 # Changelog for BuildDevImage scripts
 
+## Version 0.8.0 (August 2, 2026)
+
+### 🕸️ Graphify — AI Code Knowledge Graph (next to QMD)
+
+**Structural/call-graph code search, complementing QMD's content/semantic search**
+
+#### Changes
+
+- **Graphify pre-installed in base image**
+  - `uv` (Python package/tool manager) installed via the astral installer
+  - `graphifyy[mcp]` installed globally as a uv tool — provides the `graphify`
+    and `graphify-mcp` binaries
+  - Code-only extraction (`graphify extract . --code-only`) needs no GGUF
+    models or API key: pure tree-sitter AST + networkx, zero LLM cost
+  - `graphify-status` / `graphify-reindex` bashrc helpers added, mirroring
+    the existing `qmd-status` / `qmd-reindex` pattern
+  - Per-repo setup (extraction, Claude Code project install, git hook) is
+    deployment-specific — see `deploy_dev_env/init_graphify.sh` and its
+    CHANGELOG entry
+
+#### Technical Details
+
+- No system Python install needed: Ubuntu 22.04 ships Python 3.10, which
+  satisfies Graphify's `>=3.10` requirement
+- `uv tool install` resolves prebuilt wheels for all dependencies (numpy,
+  cryptography, tree-sitter grammars, etc.) — no compiler step, ~12s install
+- No new Docker volume required (unlike QMD's ~2GB GGUF model volume) since
+  Graphify's per-repo `graphify-out/` state rides the existing project mount
+- Verified: `docker run --rm -u rustdev tsouche/base_rust_dev:latest bash -ic
+  "graphify --version && uv --version"` in isolation before wiring into the
+  deployment scripts
+
+---
+
 ## Version 0.7.0 (March 24, 2026)
 
 ### 🌐 Playwright/Chromium for gstack /browse

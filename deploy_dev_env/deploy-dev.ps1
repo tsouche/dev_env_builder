@@ -1,5 +1,5 @@
 ﻿################################################################################
-# Development Environment Deployment Script - v0.7.1 (PowerShell)
+# Development Environment Deployment Script - v0.8.0 (PowerShell)
 # Deploys to local development laptop
 ################################################################################
 
@@ -640,6 +640,36 @@ try {
 } catch {
     Write-Warning-Custom "QMD initialization encountered an issue: $_"
     Write-Host "   Run manually inside container: ~/init_qmd.sh" -ForegroundColor Yellow
+}
+
+Write-Host ""
+
+################################################################################
+# Initialize Graphify (Automated)
+################################################################################
+
+Write-Header "Initializing Graphify Code Knowledge Graph"
+
+Write-Host "Copying latest init_graphify.sh to container..." -ForegroundColor Yellow
+docker cp "$ScriptDir\init_graphify.sh" "$($env:CONTAINER_NAME):/home/rustdev/init_graphify.sh" | Out-Null
+docker exec -u root $env:CONTAINER_NAME bash -c "dos2unix /home/rustdev/init_graphify.sh 2>/dev/null || sed -i 's/\r//' /home/rustdev/init_graphify.sh ; chmod +x /home/rustdev/init_graphify.sh ; chown 1026:110 /home/rustdev/init_graphify.sh"
+Write-Success "init_graphify.sh updated in container"
+
+Write-Host "Running Graphify auto-initialization..." -ForegroundColor Yellow
+Write-Host "  - With no repo cloned yet: completes in seconds (no extraction run)" -ForegroundColor Gray
+Write-Host "  - After cloning a repo: run ~/init_graphify.sh again to build its graph" -ForegroundColor Gray
+Write-Host "  - No GGUF models to wait for: code-only extraction is pure AST + graph, instant" -ForegroundColor Gray
+Write-Host ""
+
+try {
+    # Run init_graphify.sh inside the container as rustdev user
+    docker exec -u rustdev $env:CONTAINER_NAME bash /home/rustdev/init_graphify.sh
+    Write-Success "Graphify initialization completed"
+    Write-Host ""
+    Write-Host "+ Graphify is ready! Clone a repo inside the container then re-run ~/init_graphify.sh" -ForegroundColor Green
+} catch {
+    Write-Warning-Custom "Graphify initialization encountered an issue: $_"
+    Write-Host "   Run manually inside container: ~/init_graphify.sh" -ForegroundColor Yellow
 }
 
 Write-Host ""

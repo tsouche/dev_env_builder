@@ -6,6 +6,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.8.0] - 2026-08-02
+
+### Added
+
+- **Graphify Code Knowledge Graph, next to QMD**
+  - New `init_graphify.sh` initialization script (idempotent), mirrors
+    `init_qmd.sh`'s repo-discovery loop over `~/` and `/workspace`
+  - Per repo: `graphify extract . --code-only [--cargo]`, `graphify
+    cluster-only .` (GRAPH_REPORT.md + graph.html, fully offline/free),
+    `graphify claude install --project`, `graphify hook install`
+    (git post-commit/post-checkout auto-rebuild + graph.json merge driver)
+  - `.gitignore` updated per-repo: `graphify-out/cost.json` is git-ignored;
+    `graph.json`/`GRAPH_REPORT.md`/`graph.html` are meant to be committed
+    (upstream's own recommended team workflow — deliberately the opposite
+    of QMD's fully gitignored SQLite index)
+  - Deployment script (`deploy-dev.ps1`) runs `init_graphify.sh`
+    automatically, right after the QMD initialization section
+  - No new volume needed: code-only extraction is pure tree-sitter AST +
+    networkx, zero LLM cost, no GGUF models
+  - Complements QMD: QMD answers content/semantic questions (chunk
+    retrieval); Graphify answers structural questions (call graphs, path
+    tracing) via AST + graph traversal — both run side by side
+
+- **Extended test suite** (`test-deployment.sh`)
+  - `uv` and `Python3 >= 3.10` checks
+  - Full "Graphify" section: binary/version, `graphify-mcp` entrypoint,
+    per-repo `graph.json`/`GRAPH_REPORT.md`, Claude Code project skill,
+    `.claude/settings.json` PreToolUse hook, git post-commit hook,
+    `.gitignore` entry, `graphify-status` bashrc helper
+
+### Fixed
+
+- **Home-volume shadowing for per-user tool installs**: `/home/${USERNAME}`
+  is a persistent named Docker volume — Docker only seeds a volume's
+  content from the image the *first* time that volume is created, so
+  anything added under `/home/${USERNAME}` in a later base-image build is
+  invisible on every subsequent redeploy against an already-existing
+  volume. `uv`/`graphify` are installed into `/usr/local` instead (see
+  `build_base_dev_image/CHANGELOG.md`), and `init_graphify.sh` self-heals
+  its bashrc helper block on every run as a second line of defense.
+- **`--cargo` on Python 3.10**: needs the `tomli` package (Python 3.11+
+  ships this built in as `tomllib`); added as a dependency at the base
+  image level.
+
+---
+
 ## [0.7.0] - 2026-03-24
 
 ### Added

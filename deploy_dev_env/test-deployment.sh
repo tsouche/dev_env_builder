@@ -299,6 +299,8 @@ if [ "${#GRAPHIFY_REPOS[@]}" -eq 0 ]; then
 else
     GRAPH_OK=0
     GRAPH_MISSING=0
+    REPORT_OK=0
+    REPORT_MISSING=0
     SKILL_OK=0
     SKILL_MISSING=0
     HOOK_OK=0
@@ -318,6 +320,13 @@ else
         else
             GRAPH_MISSING=$((GRAPH_MISSING+1))
             warn "  graphify-out/graph.json ($repo_name)" "missing or empty — run: cd $repo && graphify extract . --code-only --cargo"
+        fi
+
+        # GRAPH_REPORT.md built (offline, via graphify cluster-only)
+        if [ -s "$repo/graphify-out/GRAPH_REPORT.md" ]; then
+            REPORT_OK=$((REPORT_OK+1))
+        else
+            REPORT_MISSING=$((REPORT_MISSING+1))
         fi
 
         # Claude Code project skill installed
@@ -353,6 +362,12 @@ else
         pass "Per-repo graphify-out/graph.json" "$GRAPH_OK repo(s)"
     elif [ "$GRAPH_OK" -gt 0 ]; then
         warn "Per-repo graphify-out/graph.json" "$GRAPH_OK ok, $GRAPH_MISSING missing"
+    fi
+
+    if [ "$REPORT_OK" -gt 0 ] && [ "$REPORT_MISSING" -eq 0 ]; then
+        pass "Per-repo graphify-out/GRAPH_REPORT.md" "$REPORT_OK repo(s)"
+    elif [ "$REPORT_OK" -gt 0 ] || [ "$REPORT_MISSING" -gt 0 ]; then
+        warn "Per-repo graphify-out/GRAPH_REPORT.md" "$REPORT_OK ok, $REPORT_MISSING missing — run: graphify cluster-only ."
     fi
 
     if [ "$SKILL_OK" -gt 0 ] && [ "$SKILL_MISSING" -eq 0 ]; then

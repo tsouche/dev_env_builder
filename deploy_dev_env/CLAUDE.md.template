@@ -1,8 +1,20 @@
 # Global Claude Code Configuration
 
-## Rule: Always use QMD before reading files
+## Rule: Use QMD and Graphify before reading files
 
-Before reading files or exploring directories, **always use QMD** to search for information in local projects.
+Before reading files or exploring directories, **use QMD or Graphify** to search for
+information in local projects — pick whichever matches the question:
+
+- **QMD** — content/semantic questions: where is X implemented, find error-handling
+  patterns, free-text search, similar functionality
+- **Graphify** — structural questions: what calls X, trace the path between A and B,
+  what implements this interface, call-graph / dependency tracing
+- **`{repo}/graphify-out/GRAPH_REPORT.md`** — start here for broad architecture
+  orientation on an unfamiliar repo (module layout, key communities/clusters)
+
+Both tools run side by side per project; they answer different question shapes rather
+than competing. If a Graphify PreToolUse hook nudge and this QMD rule both fire for the
+same action, prefer whichever tool matches the *question type* above.
 
 ### Available QMD Tools (via MCP):
 
@@ -52,6 +64,31 @@ When using QMD results:
 - Cite the source file and context
 - Mention the QMD score if relevant
 - If results seem outdated, suggest running `qmd-{name} update`
+
+## Graphify (Code Knowledge Graph)
+
+Graphify builds a structural code graph (AST + call graph, via tree-sitter) for each
+project — it complements QMD rather than replacing it. Use it for questions QMD's
+content search cannot answer: "what calls X", "trace the path between A and B", "what
+implements this interface". It runs entirely offline for code (no API key, no GGUF
+models — code-only extraction is pure AST + graph traversal, zero LLM cost).
+
+- `graphify query "question"` — natural-language structural query
+- `graphify path "NodeA" "NodeB"` — trace a path between two symbols
+- `graphify explain "Symbol"` — explain a symbol's role and connections
+- `graphify extract . --code-only [--cargo]` — (re)build the graph; the git
+  post-commit hook (installed by `~/init_graphify.sh`) does this automatically
+- `{repo}/graphify-out/GRAPH_REPORT.md` — architecture overview, read this first when
+  orienting in an unfamiliar repo
+- `graphify-status` — show graph status for every repo with a `graphify-out/`
+
+Each repo gets its own project-scoped skill and PreToolUse hook via `graphify claude
+install --project` (already run by `~/init_graphify.sh`) — detailed, repo-specific
+usage guidance lives in that project's own `.claude/skills/graphify/SKILL.md` and
+`CLAUDE.md`, generated automatically; this section only covers the global routing rule
+against QMD (see top of this file).
+
+To re-index after cloning a new repo, or if the graph looks stale: `~/init_graphify.sh`.
 
 ## gstack
 

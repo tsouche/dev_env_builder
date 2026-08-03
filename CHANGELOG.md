@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.0] - 2026-08-02
+
+### Added
+
+- **Graphify — AI code knowledge graph, next to QMD** ([GRAPHIFY.md](GRAPHIFY.md))
+  - Structural code search (call graphs, path tracing) complementing QMD's
+    content/semantic search — the two run side by side per project
+  - `uv` + `graphifyy[mcp]` pre-installed in the base image, into `/usr/local`
+    (zero LLM cost for code-only extraction: no API key, no GGUF models)
+  - New `deploy_dev_env/init_graphify.sh`, wired into `deploy-dev.ps1` right
+    after QMD's initialization
+  - Per-repo: `graph.json`/`GRAPH_REPORT.md`/`graph.html` (committed to git),
+    Claude Code project skill + `PreToolUse` hook, git commit hooks for
+    auto-rebuild
+  - Global `CLAUDE.md.template` routing rule: QMD for content/semantic
+    questions, Graphify for structural questions
+  - Extended `test-deployment.sh` with a full Graphify test section, written
+    before the implementation so each build step had a red-to-green signal
+  - See [build_base_dev_image/CHANGELOG.md](build_base_dev_image/CHANGELOG.md)
+    and [deploy_dev_env/CHANGELOG.md](deploy_dev_env/CHANGELOG.md) for
+    the two bugs found and fixed during verification (home-volume shadowing
+    of per-user tool installs; missing `tomli` dependency for `--cargo` on
+    Python 3.10)
+
+---
+
 ## [0.7.0] - 2026-03-24
 
 ### Added
