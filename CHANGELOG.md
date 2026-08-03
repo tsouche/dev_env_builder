@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.2] - 2026-08-03
+
+### Changed
+
+- Removed `github.copilot`/`github.copilot-chat` from the base image's
+  default VS Code extension list — both consistently failed to install and
+  neither is part of this environment's AI stack. Applied the same change to
+  [`dev_env_builder_postgresql`](https://github.com/tsouche/dev_env_builder_postgresql)
+  to keep the two variants in sync. See
+  [build_base_dev_image/CHANGELOG.md](build_base_dev_image/CHANGELOG.md).
+
+---
+
 ## [0.8.1] - 2026-08-03
 
 ### Added

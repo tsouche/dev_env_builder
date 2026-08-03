@@ -1,5 +1,22 @@
 # Changelog for BuildDevImage scripts
 
+## Version 0.8.2 (August 3, 2026)
+
+### 🧹 Removed GitHub Copilot from default extensions
+
+**Changes**
+
+- Removed `github.copilot` and `github.copilot-chat` from
+  `install_vscode_extensions.sh` and `devcontainer.json`. Both consistently
+  failed to install with an opaque `[object Object]` error during first-login
+  auto-install, and neither is part of this environment's actual AI stack
+  (Claude Code + QMD + Graphify + gstack).
+- Same change applied in parallel to
+  [`dev_env_builder_postgresql`](https://github.com/tsouche/dev_env_builder_postgresql)
+  to keep both variants' extension lists in sync.
+
+---
+
 ## Version 0.8.1 (August 3, 2026)
 
 ### 🐛 QMD native sqlite binding fix

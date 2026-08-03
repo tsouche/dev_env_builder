@@ -15,8 +15,6 @@ EXTENSIONS=(
     "panicbit.cargo"
     "fill-labs.dependi"
     "tamasfe.even-better-toml"
-    "github.copilot"
-    "github.copilot-chat"
     "davidanson.vscode-markdownlint"
     "anthropic.claude-code"
 )

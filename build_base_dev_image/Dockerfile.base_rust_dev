@@ -1,6 +1,12 @@
 ################################################################################
-# Rust Development Environment - Version 0.8.1
+# Rust Development Environment - Version 0.8.2
 # Shared Dockerfile for all environments (dev, test, prod)
+#
+# Changes in v0.8.2:
+# - Removed github.copilot / github.copilot-chat from the default VS Code
+#   extension list (install_vscode_extensions.sh, devcontainer.json): both
+#   consistently failed to install and neither is part of this environment's
+#   AI stack (Claude Code + QMD + Graphify + gstack).
 #
 # Changes in v0.8.1:
 # - Fixed QMD's native sqlite binding: npm 12's install-scripts hardening
