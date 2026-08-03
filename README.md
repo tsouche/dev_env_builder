@@ -2,6 +2,8 @@
 
 Fully containerized, AI-augmented Rust development environment with MongoDB, deployed via a single PowerShell command on Windows.
 
+> **AI agents:** read [AGENTS.md](AGENTS.md) first — it's a denser, machine-oriented map of this repo's purpose and structure.
+
 ---
 
 ## What This Repo Delivers
